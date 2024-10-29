@@ -1,0 +1,336 @@
+{% extends "base.html" %} {% block title %}Manage Documents{% endblock %}
+{% block styles %}
+<!-- CSS for Custom Context Menu -->
+<style>
+  .custom-menu {
+    display: none;
+    position: absolute;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+  }
+
+  .custom-menu ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .custom-menu ul li {
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+
+  .custom-menu ul li:hover {
+    background-color: #f5f5f5;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-0 p-6 bg-white shadow-md rounded-md">
+  <h2 class="text-3xl font-semibold mb-8 text-gray-800">Manage Documents</h2>
+
+  <!-- Action -->
+  <div class="flex space-x-4 mt-4">
+    <!-- Button Back -->
+    {% if subdir != '' %}
+    <a href="{{ url_for('guide_bot.manage_documents', subdir=subdir.split('/')[:-1]|join('/')) }}"
+      class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300">
+      🔙 Back
+    </a>
+    {% endif %}
+
+    {% if permission_name == 'QHSE' and document_form and new_folder_form %}
+    <!-- Add New File Button -->
+    <button onclick="document.getElementById('addDocumentFileModal').style.display='block'"
+      class="inline-block px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition duration-300">
+      📤 Upload Files
+    </button>
+
+    <!-- Add New Folder Button -->
+    <button onclick="document.getElementById('addDocumentFolderModal').style.display='block'"
+      class="inline-block px-4 py-2 bg-yellow-600 text-white font-semibold rounded-lg hover:bg-yellow-700 transition duration-300">
+      📁 Upload Folder
+    </button>
+
+    <!-- Create Folder Button -->
+    <button onclick="document.getElementById('createFolderModal').style.display='block'"
+      class="inline-block px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition duration-300">
+      ➕ Create Folder
+    </button>
+
+    <!-- Reload Vector DB -->
+    <a href="{{ url_for('guide_bot.reload_vector_db') }}"
+      class="inline-block px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition duration-300">
+      🔄 Reload Vector DB
+    </a>
+    {% endif %}
+  </div>  
+
+  <!-- Demo GuideBot -->
+  <a href="{{ url_for('guide_bot.chat') }}"
+    class="mt-4 inline-block px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-300">
+    🤖 Demo GuideBot
+  </a>
+
+  <!-- Search Bar -->
+  <form id="searchForm" action="{{ url_for('guide_bot.manage_documents') }}" method="get"
+    class="mt-6 flex items-center space-x-2">
+    <input type="text" name="search_query" placeholder="Search documents..."
+      value="{{ request.args.get('search_query', '') }}"
+      class="block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+    <button type="submit"
+      class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300">
+      🔍
+    </button>
+  </form>
+
+
+  <!-- Navigations -->
+  <div class="flex justify-between items-center mt-8 mb-4">
+    <div class="flex items-center">
+      <!-- Active Path Breadcrumb -->
+      <h3 class="text-xl font-semibold">
+        <a href="{{ url_for('guide_bot.manage_documents') }}" class="text-blue-600 hover:underline">Home</a>
+        >
+        {% for i, p in active_dir %}
+        <a href="{{ url_for('guide_bot.manage_documents', subdir=subdir.split('/')[:i+1]|join('/')) }}"
+          class="text-blue-600 hover:underline">{{ p }}</a>
+        {% if not loop.last %} > {% endif %}
+        {% endfor %}
+      </h3>
+    </div>
+  </div>
+
+<!-- Documents Table -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  <div class="p-4 bg-gray-100 rounded-lg shadow-md">
+    <div class="mb-4">
+      <!-- Folder List -->
+      {% if folders %}
+        <ul>
+          {% for folder in folders %}
+            <li class="mt-2">
+              <a href="{{ url_for('guide_bot.manage_documents', subdir=(subdir + '/' + folder if subdir else folder)) }}" class="text-blue-500 hover:underline">
+                <i class="fas fa-folder mr-2"></i> {{ folder }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+
+    <div class="mb-4">
+      <!-- File List -->
+      {% if files %}
+        <ul>
+          {% for file in files %}
+            {% if file.title != 'index' %}
+              <li class="mt-2" oncontextmenu="showContextMenu(event, '{{ file.title }}', 'File', '{{ file.id }}')">
+                <a href="#" class="text-blue-500 hover:underline">
+                  <i class="fas fa-file-alt mr-2"></i> {{ file.title }}
+                </a>
+              </li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+  <!-- Custom Context Menu HTML -->
+  <div id="customContextMenu" class="custom-menu">
+    <ul>
+      <li onclick="renameItem()" class="hover:bg-gray-100">Rename</li>
+      <li onclick="deleteItem()" class="hover:bg-gray-100">Delete</li>
+      <li onclick="downloadItem()" class="hover:bg-gray-100">Download</li>
+    </ul>
+  </div>
+
+  {% if document_form %}
+  <!-- Add Document File Modal -->
+  <div id="addDocumentFileModal" class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50"
+    style="display: none;">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full relative">
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">Upload Files</h2>
+      <form method="POST" action="{{ url_for('guide_bot.manage_documents', subdir=subdir) }}"
+        enctype="multipart/form-data">
+        {{ document_form.hidden_tag() }}
+        <div class="mb-4">
+          {{ document_form.files.label(class="block text-gray-700 font-medium mb-2") }}
+          {{ document_form.files(class="block w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2
+          focus:ring-blue-500") }}
+        </div>        
+        <div class="mb-4">
+          {{ document_form.permission_id.label(class="block text-gray-700 font-medium mb-2") }}
+          {{ document_form.permission_id(class="block w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2
+          focus:ring-blue-500") }}
+        </div>        
+        <div class="flex justify-end space-x-2">
+          <button type="button" onclick="document.getElementById('addDocumentFileModal').style.display='none'"
+            class="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition duration-300">
+            Cancel
+          </button>
+          <button type="submit"
+            class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300">
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if document_form %}
+  <!-- Add Document Folder Modal -->
+  <div id="addDocumentFolderModal" class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50"
+    style="display: none;">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full relative">
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">Upload Folder</h2>
+      <form method="POST" action="{{ url_for('guide_bot.manage_documents', subdir=subdir) }}"
+        enctype="multipart/form-data">
+        {{ document_form.hidden_tag() }}
+        <div class="mb-4">
+          {{ document_form.files.label(class="block text-gray-700 font-medium mb-2") }}
+            {{ document_form.files(class="block w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500", webkitdirectory=True) }}
+        </div>
+        <div class="mb-4">
+          {{ document_form.permission_id.label(class="block text-gray-700 font-medium mb-2") }}
+          {{ document_form.permission_id(class="block w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2
+          focus:ring-blue-500") }}
+        </div>        
+        <div class="flex justify-end space-x-2">
+          <button type="button" onclick="document.getElementById('addDocumentFolderModal').style.display='none'"
+            class="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition duration-300">
+            Cancel
+          </button>
+          <button type="submit"
+            class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300">
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if new_folder_form %}
+  <!-- Create Folder Modal -->
+  <div id="createFolderModal" class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50"
+    style="display: none;">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full relative">
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">Create Folder</h2>
+      <form method="POST" action="{{ url_for('guide_bot.manage_documents', subdir=subdir) }}">
+        {{ new_folder_form.hidden_tag() }}
+        <div class="mb-4">
+          {{ new_folder_form.folder_name.label(class="block text-gray-700 font-medium mb-2") }}
+          {{ new_folder_form.folder_name(class="block w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none
+          focus:ring-2 focus:ring-blue-500") }}
+        </div>
+        <div class="mb-4">
+          {{ new_folder_form.permission_id.label(class="block text-gray-700 font-medium mb-2") }}
+          {{ new_folder_form.permission_id(class="block w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2
+          focus:ring-blue-500") }}
+        </div>
+        <div class="flex justify-end space-x-2">
+          <button type="button" onclick="document.getElementById('createFolderModal').style.display='none'"
+            class="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition duration-300">
+            Cancel
+          </button>
+          <button type="submit"
+            class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300">
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- JavaScript for handling context menu -->
+<script>
+  // Function to show custom context menu
+  function showContextMenu(event, itemName, itemType, itemId) {
+    event.preventDefault();  // Prevent default right-click menu
+
+    const menu = document.getElementById('customContextMenu');
+    menu.style.display = 'block';
+    menu.style.left = event.pageX + 'px';
+    menu.style.top = event.pageY + 'px';
+
+    // Store item details for further actions (delete, rename)
+    menu.setAttribute('data-name', itemName);
+    menu.setAttribute('data-type', itemType);
+    menu.setAttribute('data-id', itemId);
+  }
+
+  // Function to hide the context menu
+  function hideContextMenu() {
+    const menu = document.getElementById('customContextMenu');
+    menu.style.display = 'none';
+  }
+
+  // Add event listener to hide context menu on click elsewhere
+  document.addEventListener('click', hideContextMenu);
+
+  // Rename action handler
+  function renameItem() {
+    const menu = document.getElementById('customContextMenu');
+    const itemName = menu.getAttribute('data-name');
+    const itemType = menu.getAttribute('data-type');
+    const newName = prompt(`Rename ${itemType} "${itemName}" to:`);
+    if (newName) {
+      // Send AJAX request to rename the file/folder (Implement backend API to handle renaming)
+      console.log(`Renaming ${itemType} "${itemName}" to "${newName}"`);
+      fetch(`/guide-bot/documents/edit/${menu.getAttribute('data-id')}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ new_name: newName })
+      })
+        .then(response => {
+          if (response.ok) {
+            console.log(`${itemType} "${itemName}" renamed to "${newName}" successfully`);
+            // Reload the page to reflect the changes
+            window.location.reload();
+          } else {
+            console.error(`Failed to rename ${itemType} "${itemName}"`);
+          }
+        });
+    }
+  }
+
+  // Delete action handler
+  function deleteItem() {
+    const menu = document.getElementById('customContextMenu');
+    const itemName = menu.getAttribute('data-name');
+    const itemId = menu.getAttribute('data-id');
+    const itemType = menu.getAttribute('data-type');
+    if (confirm(`Are you sure you want to delete ${itemType} "${itemName}"?`)) {
+      // Send AJAX request to delete the file/folder (Implement backend API to handle deletion)
+      console.log(`Deleting ${itemType} "${itemName}"`);
+      // Redirect to the backend API endpoint to delete the file/folder
+      fetch(`/guide-bot/documents/delete/${itemId}`, { method: 'POST' })
+        .then(response => {
+          if (response.ok) {
+            console.log(`${itemType} "${itemName}" deleted successfully`);
+            // Reload the page to reflect the changes
+            window.location.reload();
+          } else {
+            console.error(`Failed to delete ${itemType} "${itemName}"`);
+          }
+        });
+    }
+  }
+</script>
+{% endblock %}

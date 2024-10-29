@@ -1,0 +1,57 @@
+<!-- guide_bot/guidebot_login.html -->
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guidebot Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        <!-- Flash Messages Section -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div id="flash-message" class="absolute top-0 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white p-4 rounded-md w-full max-w-sm">
+                    <ul>
+                        {% for category, message in messages %}
+                            <li class="mb-2">{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Login -->
+        <h2 class="text-2xl font-bold mb-6">Login</h2>
+        <form method="POST" action="{{ url_for('auth.guidebot_login') }}" class="space-y-4">
+            {{ form.hidden_tag() }}
+            <div class="flex flex-col">
+                <label for="email" class="text-sm font-semibold mb-1">{{ form.email.label }}</label>
+                {{ form.email(class="border border-gray-300 p-2 rounded-md") }}
+            </div>
+            <div class="flex flex-col">
+                <label for="otp" class="text-sm font-semibold mb-1">{{ form.otp.label }}</label>
+                {{ form.otp(class="border border-gray-300 p-2 rounded-md") }}
+            </div>
+            <div>
+                <!-- {{ form.submit(class="bg-blue-500 text-white p-2 rounded-md cursor-pointer") }} -->
+                <button type="submit" name="action" value="login" class="bg-blue-500 text-white p-2 rounded-md cursor-pointer">Login</button>
+            </div>
+            <p class="mt-4 text-center text-sm">
+                Don't have an OTP? <button type="submit" name="action" value="request_otp" class="bg-green-500 text-white p-2 rounded-md cursor-pointer">Request OTP</button>.
+            </p>
+        </form>
+    </div>
+
+    <!-- Add JavaScript to hide the flash message after 3 seconds -->
+    <script>
+        setTimeout(function() {
+            var flashMessage = document.getElementById('flash-message');
+            if (flashMessage) {
+                flashMessage.style.display = 'none';
+            }
+        }, 3000); // 3 seconds
+    </script>
+</body>
+</html>

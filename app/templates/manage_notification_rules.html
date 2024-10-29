@@ -1,0 +1,506 @@
+{% extends 'base.html' %} {% block title %}Manage Notification Rules{% endblock
+%} {% block content %}
+<!-- Main Content -->
+<div class="container mx-auto py-8 lg:flex lg:space-x-8 space-y-8 lg:space-y-0">
+  <!-- Template Messages Section -->
+  <div class="w-full lg:w-1/2">
+    <div class="bg-white shadow-lg rounded-lg p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-semibold text-gray-800">Template Messages</h2>
+        <i
+          class="fas fa-plus-circle text-red-600 text-xl cursor-pointer hover:text-red-700 transition"
+          onclick="openMessageModal()"
+        ></i>
+      </div>
+      <div class="space-y-4">
+        {% for message in messages %}
+          <div
+            class="flex justify-between items-center p-4 bg-gray-50 rounded-lg shadow-sm hover:bg-gray-100 transition"
+          >
+            <!-- Name -->
+            <span class="font-medium text-gray-700">{{ message.name }}</span>
+            <!-- Action Button -->
+            <div class="flex space-x-2">
+              <button
+                title="Edit Message"
+                onclick="openMessageModal('{{ message.id }}', '{{ message.name | escape }}', '{{ message.template | escape }}')"
+                class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+              >
+                <i class="fas fa-edit"></i>
+              </button>
+              <form
+                method="POST"
+                action="{{ url_for('message.delete', id=message.id) }}"
+              >
+                {{ message_form.hidden_tag() }}
+                <button
+                  title="Delete Message"
+                  type="submit"
+                  class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition"
+                  onclick="if(confirm('Are you sure you want to delete this message? This will also delete related data such as notification rules.')) {
+                    var userInput = prompt('Please type DELETE to confirm:');
+                    if(userInput === 'DELETE') { return true; } 
+                  } 
+                  return false;">                  
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+          <!-- Template Content -->
+          <div class="p-4 bg-gray-100 rounded-lg shadow-sm">
+            <pre class="text-sm text-gray-700 whitespace-pre-wrap">
+    {{ message.template }}</pre
+            >
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Rules Section -->
+  <div class="w-full lg:w-1/2">
+    <div class="bg-white shadow-lg rounded-lg p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-semibold text-gray-800">Notification Rules</h2>
+        <i
+          class="fas fa-plus-circle text-red-600 text-xl cursor-pointer hover:text-red-700 transition"
+          onclick="openRuleModal()"
+        ></i>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full table-auto text-sm text-left">
+          <thead class="bg-gray-200 text-gray-700">
+            <tr>
+              <th class="px-4 py-2">Detector</th>
+              <th class="px-4 py-2">Contact</th>
+              <th class="px-4 py-2">Template</th>
+              <th class="px-4 py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            {% for rule in rules %}
+            <tr class="bg-gray-50 hover:bg-gray-100 transition">
+              <td class="px-4 py-3">{{ rule.detector_id }}</td>
+              <td class="px-4 py-3">{{ rule.contact.name }}</td>
+              <td class="px-4 py-3">{{ rule.message_template.name }}</td>
+              <td class="px-4 py-3 flex space-x-2">
+                <button
+                  title="Edit Notification Rule"
+                  onclick="openRuleModal('{{ rule.id }}', '{{ rule.detector_id }}', '{{ rule.contact_id }}', '{{ rule.message_template_id }}')"
+                  class="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 transition"
+                >
+                  <i class="fas fa-edit"></i>
+                </button>
+                <form
+                  action="{{ url_for('notification.delete', id=rule.id) }}"
+                  method="POST"
+                >
+                  <button
+                    title="Delete Notification Rule"
+                    type="submit"
+                    class="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 transition"
+                    onclick="return confirm('Are you sure you want to delete this notification rule?')"
+                  >
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Message Template Modal -->
+<div
+  id="messageModal"
+  class="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center hidden"
+>
+  <div
+    class="bg-white rounded-lg shadow-lg w-11/12 md:w-1/2 lg:w-1/3 p-6 relative"
+  >
+    <button
+      onclick="closeMessageModal()"
+      class="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+    >
+      ✖
+    </button>
+    <h2 class="text-xl font-semibold mb-4" id="messageModalTitle">
+      Add New Message
+    </h2>
+    <form
+      id="messageForm"
+      onsubmit="submitMessageForm(event)"
+      class="space-y-4"
+    >
+      {{ message_form.hidden_tag() }}
+      <input type="hidden" name="rule_id" id="message_id" value="" />
+      <div>
+        {{ 
+          message_form.name.label(
+            class_='block font-medium text-gray-700'
+          )       
+        }}
+        {{ 
+          message_form.name(
+            class_='mt-1 h-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500'
+          ) 
+        }}
+      </div>
+      <div>
+        {{ 
+          message_form.template.label(
+            class_='block font-medium text-gray-700'
+          ) 
+        }}
+        {{ 
+          message_form.template(
+            class_='mt-1 block w-full h-60 rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500'
+                        
+          ) 
+        }}
+        <small class="text-gray-500"
+          >Use the following placeholders: @detector_id, @name,
+          @timestamp</small
+        >
+      </div>
+      <!-- Cancel -->
+      <button
+        type="button"
+        onclick="closeMessageModal()"
+        class="w-full bg-gray-300 text-gray-700 py-2 rounded-md hover:bg-gray-400 transition"
+      >
+        Back
+      </button>
+      <!-- Submit -->
+      <button
+        type="submit"
+        name="submit_message"
+        class="w-full bg-red-600 text-white py-2 rounded-md hover:bg-red-700 transition"
+      >
+        Submit
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Notification Rule Modal -->
+<div
+  id="ruleModal"
+  class="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center hidden"
+>
+  <div
+    class="bg-white rounded-lg shadow-lg w-11/12 md:w-1/2 lg:w-1/3 p-6 relative"
+  >
+    <button
+      onclick="closeRuleModal()"
+      class="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+    >
+      ✖
+    </button>
+    <h2 class="text-xl font-semibold mb-4" id="ruleModalTitle">
+      Add New Notification Rule
+    </h2>
+    <form
+      id="ruleForm"
+      onsubmit="submitNotificationForm(event)"
+      class="space-y-4"
+    >
+      {{ rule_form.hidden_tag() }}
+      <input type="hidden" name="rule_id" id="rule_id" value="" />
+      <div>
+        <label for="detector_id" class="block font-medium text-gray-700"
+          >Detector</label
+        >
+        {{ rule_form.detector_id(class_='mt-1 block w-full rounded-md
+        border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500') }}
+      </div>
+      <div>
+        <label for="contact_id" class="block font-medium text-gray-700"
+          >Contact</label
+        >
+        {{ rule_form.contact_id(class_='mt-1 block w-full rounded-md
+        border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500') }}
+      </div>
+      <div>
+        <label for="message_template_id" class="block font-medium text-gray-700"
+          >Message Template</label
+        >
+        {{ rule_form.message_template_id(class_='mt-1 block w-full rounded-md
+        border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500') }}
+      </div>
+      <button
+        type="submit"
+        name="submit_rule"
+        class="w-full bg-red-600 text-white py-2 rounded-md hover:bg-red-700 transition"
+      >
+        Submit
+      </button>
+    </form>
+  </div>
+</div>
+
+{% endblock %} {% block scripts %}
+{{ super() }}
+
+<!-- Scripts for Modals -->
+<script>
+  // Message Modal Functions
+  function openMessageModal(id = null, name = "", template = "") {
+    const modal = document.getElementById("messageModal");
+    const title = document.getElementById("messageModalTitle");
+    const form = document.getElementById("messageForm");
+    const messageIdInput = document.getElementById("message_id");
+
+    if (id) {
+      title.textContent = "Edit Message";
+      messageIdInput.value = id;
+      form.name.value = name;
+      form.template.value = template;
+    } else {
+      title.textContent = "Add New Message";
+      messageIdInput.value = "";
+      form.name.value = "";
+      form.template.value = "";
+    }
+
+    modal.classList.remove("hidden");
+  }
+
+  function closeMessageModal() {
+    const modal = document.getElementById("messageModal");
+    modal.classList.add("hidden");
+  }
+
+  // Rule Modal Functions
+  function openRuleModal(
+    id = null,
+    detector_id = "",
+    contact_id = "",
+    message_template_id = ""
+  ) {
+    const modal = document.getElementById("ruleModal");
+    const title = document.getElementById("ruleModalTitle");
+    const form = document.getElementById("ruleForm");
+    const ruleIdInput = document.getElementById("rule_id");
+
+    if (id) {
+      title.textContent = "Edit Notification Rule";
+      ruleIdInput.value = id;
+      form.detector_id.value = detector_id;
+      form.contact_id.value = contact_id;
+      form.message_template_id.value = message_template_id;
+    } else {
+      title.textContent = "Add New Notification Rule";
+      ruleIdInput.value = "";
+      form.detector_id.value = "";
+      form.contact_id.value = "";
+      form.message_template_id.value = "";
+    }
+
+    modal.classList.remove("hidden");
+  }
+
+  function closeRuleModal() {
+    const modal = document.getElementById("ruleModal");
+    modal.classList.add("hidden");
+  }
+
+  // Close modals when clicking outside the modal content
+  window.onclick = function (event) {
+    const messageModal = document.getElementById("messageModal");
+    const ruleModal = document.getElementById("ruleModal");
+
+    if (event.target == messageModal) {
+      closeMessageModal();
+    }
+
+    if (event.target == ruleModal) {
+      closeRuleModal();
+    }
+  };
+
+  function submitMessageForm(event) {
+    event.preventDefault();
+    const form = document.getElementById("messageForm");
+    const id = document.getElementById("message_id").value;
+    const name = form.name.value;
+    const template = form.template.value;
+
+    if (id) {
+      // Update
+      fetch(`/message/${id}/edit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: name,
+          template: template,
+        }),
+      })
+        .then((response) => {
+          if (response.ok) {
+            window.location.href = "{{ url_for('notification.view') }}";
+          } else {
+            response.json().then((data) => {
+              alert("Error: " + data.message);
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+    } else {
+      // Create
+      fetch("/message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: name,
+          template: template,
+        }),
+      })
+        .then((response) => {
+          if (response.ok) {
+            window.location.href = "{{ url_for('notification.view') }}";
+          } else {
+            response.json().then((data) => {
+              alert("Error: " + data.message);
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+    }
+  }
+
+  function submitNotificationForm(event) {
+    event.preventDefault();
+    const form = document.getElementById("ruleForm");
+    const id = document.getElementById("rule_id").value;
+    const detector_id = form.detector_id.value;
+    const contact_id = form.contact_id.value;
+    const message_template_id = form.message_template_id.value;
+
+    if (id) {
+      // Update
+      fetch(`/notification/${id}/edit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          detector_id: detector_id,
+          contact_id: contact_id,
+          message_template_id: message_template_id,
+        }),
+      })
+        .then((response) => {
+          if (response.ok) {
+            window.location.href = "{{ url_for('notification.view') }}";
+          } else {
+            response.json().then((data) => {
+              alert("Error: " + data.message);
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+    } else {
+      // Create
+      fetch("/notification", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          detector_id: detector_id,
+          contact_id: contact_id,
+          message_template_id: message_template_id,
+        }),
+      })
+        .then((response) => {
+          if (response.ok) {
+            window.location.href = "{{ url_for('notification.view') }}";
+          } else {
+            response.json().then((data) => {
+              alert("Error: " + data.message);
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+    }
+  }
+
+  function submitRuleForm(event) {
+    event.preventDefault();
+    const form = document.getElementById("ruleForm");
+    const id = document.getElementById("rule_id").value;
+    const name = form.name.value;
+    const template = form.template.value;
+
+    if (id) {
+      // Update
+      fetch(`/notification/${id}/edit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          detector_id: form.detector_id.value,
+          contact_id: form.contact_id.value,
+          message_template_id: form.message_template_id.value,
+        }),
+      })
+        .then((response) => {
+          if (response.ok) {
+            window.location.href = "{{ url_for('notification.view') }}";
+          } else {
+            response.json().then((data) => {
+              alert("Error: " + data.message);
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+    } else {
+      fetch("/notification", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          detector_id: form.detector_id.value,
+          contact_id: form.contact_id.value,
+          message_template_id: form.message_template_id.value,
+        }),
+      })
+        .then((response) => {
+          if (response.ok) {
+            window.location.href = "{{ url_for('notification.view') }}";
+          } else {
+            response.json().then((data) => {
+              alert("Error: " + data.message);
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+    }
+  }
+</script>
+
+{% endblock %}

@@ -1,0 +1,444 @@
+import base64
+import io
+import os
+from colorama import Back, Style
+import cv2
+import pandas as pd
+# import plotly.graph_objects as go
+# import plotly.io as pio
+import requests
+from datetime import datetime, timedelta
+from collections import Counter
+from flask import Blueprint, render_template, flash, redirect, request, url_for, Response, stream_with_context, abort, jsonify, session
+from app.extensions import db
+from app.models import Camera, Contact, DetectedObject, Detector, DetectorType, NotificationRule, User, Weight, MessageTemplate
+from app.forms import AddCCTVForm, EditCCTVForm, MessageTemplateForm, ModelForm, NotificationRuleForm, SelectCCTVForm, ContactForm, DetectorForm, LoginForm, RegistrationForm 
+from flask_login import current_user, login_user, logout_user, login_required
+
+from utils.wa import Message
+
+main = Blueprint('main', __name__)
+GRAPHICS_DIR = 'app/static/graphics'
+
+@main.route('/')
+def index():
+    # return render_template('index.html', title='Home', current_user=current_user)
+    return redirect(url_for('report.dashboard'))
+
+@main.route('/report/dashboard')
+@login_required
+def dashboard():
+    print("Role:", session.get('role'))
+    print(Back.GREEN + '**************************************************************')
+    print("CURRENT USER:", current_user)
+    print(Style.RESET_ALL)        
+    # Fetching data 
+    num_cctv = Camera.query.filter(Camera.permission_id == session.get('permission_id')).count()
+    num_detectors = Detector.query.filter(Detector.permission_id == session.get('permission_id')).count()
+
+    num_no_helmet = DetectedObject.query.filter(DetectedObject.name.like('%No helmet%'), DetectedObject.permission_id == session.get('permission_id')).count()
+    num_no_vest = DetectedObject.query.filter(DetectedObject.name.like('%No vest%'), DetectedObject.permission_id == session.get('permission_id')).count()
+    num_no_ppe = num_no_helmet + num_no_vest
+    num_reckless = DetectedObject.query.filter(DetectedObject.name == 'sleepy', DetectedObject.permission_id == session.get('permission_id')).count()
+    num_gesture_help = DetectedObject.query.filter(DetectedObject.name == 'cross-hands', DetectedObject.permission_id == session.get('permission_id')).count()
+
+    # Example data for charts (this would normally be queried from the database)
+    today = datetime.today()
+    last_7_days = [(today - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(7)]
+    chatbot_requests = Counter({day: 0 for day in last_7_days})  # Replace with actual data
+    safety_incidents = Counter({day: 0 for day in last_7_days})  # Replace with actual data
+
+    return render_template('dashboard.html', num_cctv=num_cctv, num_detectors=num_detectors,
+                           num_no_ppe=num_no_ppe, num_reckless=num_reckless, num_gesture_help=num_gesture_help,
+                           chatbot_requests=chatbot_requests, safety_incidents=safety_incidents, session_role=session.get('role'))
+
+# CCTV
+@main.route('/cctv/manage', methods=['GET', 'POST'])
+def manage_cctv():
+    form = AddCCTVForm()    
+    form.type.choices.insert(0, ('', 'Select Type'))
+    if form.validate_on_submit():
+        camera = Camera(location=form.location.data, ip_address=form.ip_address.data, status=0, role=session.get('role'))
+        db.session.add(camera)
+        db.session.commit()
+        flash('CCTV added successfully!')
+        return redirect(url_for('main.manage_cctv'))
+    cameras = Camera.query.filter(Camera.permission_id == session.get('permission_id')).all()
+    return render_template('manage_cctv.html', title='Manage CCTV', form=form, cameras=cameras)
+
+@main.route('/cctv/edit/<int:id>', methods=['GET', 'POST'])
+def edit_cctv(id):
+    camera = Camera.query.get_or_404(id)
+    form = EditCCTVForm(obj=camera)
+    if form.validate_on_submit():
+        camera.location = form.location.data
+        camera.type = form.type.data
+        camera.ip_address = form.ip_address.data
+        camera.status = form.status.data
+        camera.role = session.get('role')
+        db.session.commit()
+        flash('CCTV updated successfully!')
+        return redirect(url_for('main.manage_cctv'))
+    return render_template('edit_cctv.html', title='Edit CCTV', form=form)
+
+@main.route('/cctv/delete/<int:id>', methods=['POST'])
+def delete_cctv(id):
+    camera = Camera.query.get_or_404(id)
+    db.session.delete(camera)
+    db.session.commit()
+    flash('CCTV deleted successfully!', 'success')
+    return redirect(url_for('main.manage_cctv'))
+
+@main.route('/cctv/view_feed/<int:camera_id>')
+def view_cctv_feed(camera_id):
+    return render_template('view_cctv_feed.html', title='Live CCTV Feed', camera_id=camera_id)
+
+@main.route('/cctv/stream/<int:camera_id>')
+def cctv_stream(camera_id):
+    camera = Camera.query.get_or_404(camera_id)
+    def generate_frames():
+        address = 0 if camera.ip_address == "http://0.0.0.0" else camera.ip_address            
+        cap = cv2.VideoCapture(address)
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+# DETECTOR
+@main.route('/object-detection/detector/manage', methods=['GET', 'POST'])
+@main.route('/object-detection/detector/manage/<int:id>', methods=['GET', 'POST'])
+def manage_detector(id=None):
+    if id:
+        detector = Detector.query.get_or_404(id)
+        form = DetectorForm(obj=detector)
+        title = "Edit Detector"
+    else:
+        detector = None
+        form = DetectorForm()
+        title = "Add New Detector"
+
+    cameras = Camera.query.filter(Camera.permission_id == session.get('permission_id')).all()
+    detector_types = DetectorType.query.all()
+    if len(detector_types) == 0:
+        detector_types = [
+            DetectorType(
+                name='PPE',
+                description='Personal Protective Equipment'                
+            ),
+            DetectorType(
+                name='Gesture',
+                description='Gesture for Help'                
+            ),
+            DetectorType(
+                name='Unfocused',
+                description='Unfocused'
+            )
+        ]
+        db.session.add_all(detector_types)
+        db.session.commit()
+
+    weights = Weight.query.filter(Weight.permission_id == session.get('permission_id')).all()
+    form.weight_id.choices = [(weight.id, weight.name) for weight in weights]
+    form.camera_id.choices = [(camera.id, camera.location) for camera in cameras]
+    # form.types.choices = [(detector_type.id, detector_type.name) for detector_type in detector_types]
+
+    if form.validate_on_submit():
+        weight = Weight.query.get(form.weight_id.data)
+        if detector:
+            detector.camera_id = form.camera_id.data
+            detector.weight_id = form.weight_id.data
+            detector.running = form.running.data                
+            detector.detector_type_id = weight.detector_type_id        
+        else:
+            new_detector = Detector(
+                camera_id=form.camera_id.data,
+                weight_id=form.weight_id.data,
+                running=form.running.data,
+                detector_type_id=weight.detector_type_id,
+                role=session.get('role')
+            )
+            db.session.add(new_detector)
+        
+        db.session.commit()
+        flash('Detector entry updated successfully!' if detector else 'Detector entry added successfully!')
+        return redirect(url_for('main.manage_detector'))
+    
+    detectors = Detector.query.filter(Detector.permission_id == session.get('permission_id')).all()
+    return render_template('manage_detector.html', form=form, detectors=detectors, detector=detector, title=title)
+
+@main.route('/object-detection/detector/delete/<int:id>')
+def delete_detector(id):
+    detector = Detector.query.get_or_404(id)
+    db.session.delete(detector)
+    db.session.commit()
+    flash('Detector entry deleted successfully!')
+    return redirect(url_for('main.manage_detector'))
+
+@main.route('/detector/view_feed/<int:detector_id>')
+def view_detector_feed(detector_id):
+    return render_template('view_detector_feed.html', title='Live Detector Feed', detector_id=detector_id)
+
+@main.route('/detector/stream/<int:detector_id>')
+def detector_stream(detector_id):
+    detector = Detector.query.get_or_404(detector_id)    
+    detector_type = detector_type
+    detector_types = {
+        'PPE': ppe_detector,
+        'Gesture': gesture_detector,
+        'Unfocused': unfocused_detector
+    }
+    detector = detector_types[detector_type]
+    def generate_frames():
+        while True:
+            if detector_id in detector.frames:
+                print(f"Detector {detector_id} dengan tipe {detector_type} terdapat frame")
+                frame = detector.frames[detector_id]            
+                print("Frame:", frame)
+                # cv2.imshow("Frame", frame)
+                ret, buffer = cv2.imencode('.jpg', frame)
+                frame = buffer.tobytes()
+                yield (b'--frame\r\n'   
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+            else:
+                print(f"Detector {detector_id} dengan tipe {detector_type} TIDAK terdapat frame")
+                continue
+    
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+# MODEL
+@main.route('/object-detection/model/manage', methods=['GET', 'POST'])
+@main.route('/object-detection/model/manage/<int:id>', methods=['GET', 'POST'])
+def manage_model(id=None):
+    if id:
+        model = Weight.query.get_or_404(id)
+        form = ModelForm(obj=model)
+        title = "Edit Model"
+    else:
+        model = None
+        form = ModelForm()
+        title = "Add New Model"
+
+    detector_types = DetectorType.query.all()
+    form.detector_type.choices = [(detector_type.id, detector_type.name) for detector_type in detector_types]
+
+    weights_dir = 'weights'    
+    if form.validate_on_submit():
+        print("Model:", model)
+        if model:                        
+            model.name = form.name.data
+        else:
+            role_dir = os.path.join(weights_dir, session.get('role'))
+            if not os.path.exists(role_dir):
+                os.makedirs(role_dir)
+            form.file.data.save(os.path.join(role_dir, form.file.data.filename))
+            new_model = Weight(
+                name=form.name.data,
+                detector_type_id=form.detector_type.data,
+                file=form.file.data.read(),
+                path=os.path.join(role_dir, form.file.data.filename),
+                created_at=datetime.now(),
+                role=session.get('role')
+            )
+            db.session.add(new_model)                    
+
+        db.session.commit()
+        flash('Model entry updated successfully!' if model else 'Model entry added successfully!')
+        return redirect(url_for('main.manage_model'))
+    
+    models = Weight.query.filter(Weight.permission_id == session.get('permission_id')).all()
+    return render_template('manage_model.html', form=form, models=models, model=model, title=title)
+
+@main.route('/object-detection/model/delete/<int:id>', methods=['POST'])
+def delete_model(id):
+    model = Weight.query.get_or_404(id)
+    db.session.delete(model)
+    db.session.commit()
+    flash('Model deleted successfully!')
+    return redirect(url_for('main.manage_model'))
+
+@main.route('/get_weights/<int:detector_type_id>')
+def get_weights(detector_type_id):
+    weights = Weight.query.filter_by(detector_type_id=detector_type_id, role=session.get('role')).all()
+    weight_list = [{'id': weight.id, 'name': weight.name} for weight in weights]
+    return jsonify(weight_list)
+
+# CONTACT
+@main.route('/object-detection/contact/manage', methods=['GET', 'POST'])
+@main.route('/object-detection/contact/manage/<int:id>', methods=['GET', 'POST'])
+def manage_contact(id=None):
+    if id:
+        contact = Contact.query.get_or_404(id)
+        form = ContactForm(obj=contact)
+        title = "Edit Contact"
+    else:
+        contact = None
+        form = ContactForm()
+        title = "Add New Contact"
+
+    if form.validate_on_submit():
+        is_group = request.form.get('is_group')
+        is_group = True if is_group == 'true' else False
+        if contact:
+            if not is_group:
+                contact.phone_number = form.phone_number.data
+            contact.name = form.name.data
+            contact.description = form.description.data   
+            contact.is_group = is_group                         
+        else:
+            new_contact = Contact(
+                phone_number=form.phone_number.data, 
+                name=form.name.data,    
+                description = form.description.data,
+                is_group = is_group,
+                role=session.get('role')
+            )
+            db.session.add(new_contact)
+        
+        db.session.commit()
+        flash('Contact entry updated successfully!' if contact else 'Contact entry added successfully!')
+        return redirect(url_for('main.manage_contact'))
+    
+    whas = Contact.query.filter(Contact.permission_id == session.get('permission_id')).all()
+    return render_template('manage_contact.html', form=form, whas=whas, contact=contact, title=title)
+
+@main.route('/object-detection/contact/delete/<int:id>')
+def delete_contact(id):
+    contact = Contact.query.get_or_404(id)
+    db.session.delete(contact)
+    db.session.commit()
+    flash('Contact entry deleted successfully!')
+    return redirect(url_for('main.manage_contact'))
+
+# REPORT
+@main.route('/report/detected-object', methods=['GET'])
+def detected_object():
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # Jumlah objek per halaman
+    search_query = request.args.get('search_query')
+
+    if search_query:
+        detected_objects = DetectedObject.query.join(Detector).join(Camera) \
+            .filter(DetectedObject.name.like(f'%{search_query}%'), DetectedObject.permission_id == session.get('permission_id')) \
+            .order_by(DetectedObject.timestamp.desc()) \
+            .paginate(page=page, per_page=per_page)
+    else:
+        detected_objects = DetectedObject.query.join(Detector).join(Camera) \
+            .filter(DetectedObject.permission_id == session.get('permission_id')) \
+            .order_by(DetectedObject.timestamp.desc()) \
+            .paginate(page=page, per_page=per_page)
+
+    return render_template('detected_object.html', detected_objects=detected_objects, search_query=search_query)
+
+@main.route('/report/detected-object/view-object/<int:object_id>', methods=['GET'])
+def view_object(object_id):
+    detected_object = DetectedObject.query.get_or_404(object_id)    
+    return render_template('view_object.html', detected_object=detected_object)
+
+# NOTIFICATION RULE
+@main.route('/object-detection/notification-rule/manage', methods=['GET', 'POST'])
+@main.route('/object-detection/notification-rule/manage/<int:rule_id>', methods=['GET', 'POST'])
+def manage_notification_rules(rule_id=None):
+    if rule_id:
+        message = MessageTemplate.query.get(rule_id)
+        message_form = MessageTemplateForm(obj=message)
+        message_title = "Edit Message"
+    else:
+        message = None
+        message_form = MessageTemplateForm()
+        message_title = "Add New Message"
+
+    if message_form.validate_on_submit() and 'submit_message' in request.form:
+        if message:
+            message.name = message_form.name.data
+            message.template = message_form.template.data
+        else:
+            new_message = MessageTemplate(
+                name=message_form.name.data,
+                template=message_form.template.data,
+                role=session.get('role')
+            )
+            db.session.add(new_message)
+        db.session.commit()
+        flash('Message updated!' if message else 'Message added!', 'success')
+        return redirect(url_for('main.manage_notification_rules'))
+
+    # Handling Notification Rule form
+    rule_id = request.form.get('rule_id')
+    if rule_id:
+        rule = NotificationRule.query.get(rule_id) or None
+        rule_form = NotificationRuleForm(obj=rule) 
+        rule_title = "Edit Notification Rule"
+    else:
+        rule = None
+        rule_form = NotificationRuleForm()
+        rule_form.detector_id.choices.insert(0, (0, 'Select Detector'))
+        rule_form.contact_id.choices.insert(0, (0, 'Select Contact'))
+        rule_form.message_template_id.choices.insert(0, (0, 'Select Message Template'))
+        rule_title = "Add New Notification Rule"
+
+    if rule_form.validate_on_submit() and 'submit_rule' in request.form:
+        if rule:
+            rule.detector_id = rule_form.detector_id.data
+            rule.contact_id = rule_form.contact_id.data
+            rule.message_template_id = rule_form.message_template_id.data
+        else:
+            new_rule = NotificationRule(
+                detector_id=rule_form.detector_id.data,
+                contact_id=rule_form.contact_id.data,
+                message_template_id=rule_form.message_template_id.data,
+                role=session.get('role')
+            )
+            db.session.add(new_rule)
+        db.session.commit()
+        flash('Rule updated!' if rule else 'Rule added!', 'success')
+        return redirect(url_for('main.manage_notification_rules'))
+
+    messages = MessageTemplate.query.filter(MessageTemplate.permission_id == session.get('permission_id')).all()
+    rules = NotificationRule.query.filter(NotificationRule.permission_id == session.get('permission_id')).all()
+    
+    return render_template(
+        'manage_notification_rules.html', 
+        message_form=message_form, 
+        rule_form=rule_form, 
+        messages=messages, 
+        rules=rules,
+        message_title=message_title,
+        rule_title=rule_title
+    )
+
+# Manage message
+# @main.route('/object-detection/message/manage', methods=['GET', 'POST'])
+# @main.route('/object-detection/message/manage/<int:id>', methods=['GET', 'POST'])
+# def manage_message(id=None):
+#     if id:
+#         message = MessageTemplate.query.get_or_404(id)
+#         message_form = MessageTemplateForm(obj=message)
+#         title = "Edit Message"
+#     else:
+#         message = None
+#         message_form = MessageTemplateForm()
+#         title = "Add New Message"
+
+#     if message_form.validate_on_submit():
+#         if message:
+#             message.name = message_form.name.data
+#             message.template = message_form.template.data
+#         else:
+#             new_message = MessageTemplate(
+#                 name=message_form.name.data,
+#                 template=message_form.template.data
+#             )
+#             db.session.add(new_message)
+        
+#         db.session.commit()
+#         flash('Message entry updated successfully!' if message else 'Message entry added successfully!')
+#         return redirect(url_for('main.manage_message'))
+    
+#     messages = MessageTemplate.query.all()
+#     return render_template('manage_message.html', message_form=message_form, messages=messages, message=message, title=title)

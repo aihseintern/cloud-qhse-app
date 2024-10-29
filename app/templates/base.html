@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.10.2/dist/cdn.min.js"
+      defer
+    ></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    {% block styles %}{% endblock %}
+  </head>
+
+  <body class="bg-gray-100">
+    <!-- Header -->
+    <header
+      class="fixed top-0 left-0 right-0 bg-white shadow-lg z-50 h-16 flex items-center justify-between px-6"
+    >
+      <!-- Logo and App Name -->
+      <div class="flex items-center">
+        <div id="logo" class="text-xl font-semibold">
+          <img src="/static/img/spil_logo.svg" alt="Logo" class="h-8" />
+        </div>
+        {% if current_user.is_admin() and "/admin" in request.path %}
+        <span class="text-2xl font-bold ml-3 tracking-wide text-gray-800"
+          >Admin Panel</span
+        >
+        {% else %}
+        <span class="text-2xl font-bold ml-3 tracking-wide text-gray-800"
+          >{{permission_name }}</span
+        >
+        {% endif %}
+      </div>
+
+      <!-- Running Text -->
+      <div class="marquee text-blue-600 font-semibold text-lg">
+        <marquee direction="left" scrollamount="8">
+          PT Salam Pacific Indonesia Lines
+        </marquee>
+      </div>
+
+      <!-- User Profile & Notifications -->
+      <div class="flex items-center space-x-6">
+        <!-- Notifications Icon -->
+        <div class="relative">
+          <i
+            class="fas fa-bell text-gray-500 hover:text-gray-800 cursor-pointer text-2xl"
+          ></i>
+          <span
+            class="absolute top-0 right-0 inline-block w-3 h-3 bg-red-600 border-2 border-white rounded-full"
+          ></span>
+        </div>
+
+        <!-- User Profile -->
+        <div class="flex items-center space-x-3">
+          <img
+            src="/static/img/corporate-user-icon.png"
+            alt="User Avatar"
+            class="w-10 h-10 rounded-full border border-gray-300"
+          />
+          <span class="text-gray-700 font-medium">{{ current_user.name }}</span>
+          <!-- Logout -->
+          <a
+            href="{{ url_for('auth.logout') }}"
+            class="text-red-500 hover:text-red-600"
+          >
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <div class="flex pt-16">
+      <aside
+        id="sidebar"
+        class="fixed top-16 left-0 h-full bg-red-800 text-white w-64 space-y-6 py-7 px-2 transition-transform transform -translate-x-full md:translate-x-0"
+      >
+        <nav class="mt-4">
+          <!-- Menu -->
+          {% if current_user.is_admin() %}
+          <a
+            href="{{ url_for('admin.menu') }}"
+            class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 flex items-center {{ 'bg-gray-700' if '/home' in request.path else '' }}"
+          >
+            <i class="fas fa-home mr-3"></i>
+            Menu
+          </a>
+          {% else %}
+          <a
+            href="{{ url_for('main.index') }}"
+            class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 flex items-center {{ 'bg-gray-700' if '/home' in request.path else '' }}"
+          >
+            <i class="fas fa-home mr-3"></i>
+            Menu
+          </a>
+          {% endif %} {% if current_user.is_admin() and "/admin" in request.path
+          %}
+          <!-- Register Approval -->
+          <a
+            href="{{ url_for('admin.user_approval') }}"
+            class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 flex items-center {{ 'bg-gray-700' if '/admin/user-approval' in request.path else '' }}"
+          >
+            <i class="fa-solid fa-users-gear mr-3"></i>
+            User Approval
+          </a>
+          <!-- Grant Access to user -->
+          <a
+            href="{{ url_for('admin.user_permission') }}"
+            class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 flex items-center {{ 'bg-gray-700' if '/admin/user-permission' in request.path else '' }}"
+          >
+            <i class="fa-solid fa-list-check mr-3"></i>
+            Grant access to users
+          </a>
+          {% else %}
+          <!-- Master Menu -->
+          <div
+            x-data="{ open: 
+              {{ 'true' if '/cctv' in request.path 
+              or '/weight' in request.path
+              or '/detector' in request.path
+              or '/contact' in request.path
+              or '/notification' in request.path              
+              else 'false' }} }"
+          >
+            <a
+              href="#"
+              @click.prevent="open = !open"
+              class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 flex items-center"
+            >
+              <i class="fas fa-bars mr-3"></i>
+              Master Menu
+              <span
+                :class="open ? 'rotate-90' : 'rotate-0'"
+                class="inline-block transform transition-transform duration-200 ml-auto"
+              >
+                <i class="fas fa-angle-right"></i>
+              </span>
+            </a>
+
+            <!-- Dropdown: Master Menu -->
+            <div x-show="open" class="pl-10">
+              <!-- CCTV -->
+              <a
+                href="{{ url_for('cctv.view') }}"
+                class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 flex items-center {{ 'bg-gray-700' if '/cctv/manage' in request.path else '' }}"
+              >
+                <i class="fas fa-video mr-3"></i>
+                CCTV
+              </a>
+
+              <!-- Object Detection -->
+              <div
+                x-data="{ open: 
+                  {{ 'true' if '/weight' in request.path 
+                  or '/detector' in request.path
+                  or '/contact' in request.path
+                  or '/notification' in request.path                  
+                  else 'false' }} }"
+              >
+                <a
+                  href="#"
+                  @click.prevent="open = !open"
+                  class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 flex items-center"
+                >
+                  <i class="fas fa-bullseye mr-3"></i>
+                  Object Detection
+                  <span
+                    :class="open ? 'rotate-90' : 'rotate-0'"
+                    class="inline-block transform transition-transform duration-200 ml-auto"
+                  >
+                    <i class="fas fa-angle-right"></i>
+                  </span>
+                </a>
+
+                <!-- Dropdown: Model -->
+                <div x-show="open" class="pl-10">
+                  <a
+                    href="{{ url_for('weight.view') }}"
+                    class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 flex items-center {{ 'bg-gray-700' if '/weight' in request.path else '' }}"
+                  >
+                    <i class="fas fa-cube mr-3"></i>
+                    Model
+                  </a>
+                  <a
+                    href="{{ url_for('detector.view') }}"
+                    class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 flex items-center {{ 'bg-gray-700' if '/detector' in request.path else '' }}"
+                  >
+                    <i class="fas fa-crosshairs mr-3"></i>
+                    Detector
+                  </a>
+                  <a
+                    href="{{ url_for('contact.view') }}"
+                    class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 flex items-center {{ 'bg-gray-700' if '/contact' in request.path else '' }}"
+                  >
+                    <i class="fas fa-address-book mr-3"></i>
+                    Contact
+                  </a>
+                  <a
+                    href="{{ url_for('notification.view') }}"
+                    class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 flex items-center {{ 'bg-gray-700' if '/notification' in request.path else '' }}"
+                  >
+                    <i class="fas fa-envelope mr-3"></i>
+                    Notification
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Report -->
+          <div
+            x-data="{ open: {{ 'true' if '/report' in request.path else 'false' }} }"
+          >
+            <a
+              href="#"
+              @click.prevent="open = !open"
+              class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 flex items-center"
+            >
+              <i class="fas fa-chart-line mr-3"></i>
+              Report
+              <span
+                :class="open ? 'rotate-90' : 'rotate-0'"
+                class="inline-block transform transition-transform duration-200 ml-auto"
+              >
+                <i class="fas fa-angle-right"></i>
+              </span>
+            </a>
+
+            <!-- Dropdown: Report -->
+            <div x-show="open" class="pl-10">
+              <a
+                href="{{ url_for('report.dashboard') }}"
+                class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 flex items-center {{ 'bg-gray-700' if '/report/dashboard' in request.path else '' }}"
+              >
+                <i class="fas fa-tachometer-alt mr-3"></i>
+                Dashboard
+              </a>
+              <a
+                href="{{ url_for('report.detected_object') }}"
+                class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 flex items-center {{ 'bg-gray-700' if '/report/detected-object' in request.path else '' }}"
+              >
+                <i class="fas fa-object-group mr-3"></i>
+                Detected Object
+              </a>
+            </div>
+          </div>
+
+          {% if permission_name == "QHSE" %}
+          <div>
+            <a
+              href="{{ url_for('guide_bot.manage_documents') }}"
+              class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 flex items-center  {{ 'bg-gray-700' if '/guide-bot' in request.path else '' }}"
+            >
+              <i class="fas fa-comments mr-3"></i>
+              Master Chatbot
+            </a>
+          </div>
+          {% endif %} {% endif %}
+        </nav>
+      </aside>
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-10 ml-64">
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, mesg in messages %}
+      <div
+        id="flash-container"
+        class="{% if category == 'success' %} bg-green-200 text-green-800 border-green-500 {% elif category == 'info' %} bg-blue-200 text-blue-800 border-blue-500 {% elif category == 'danger' %} bg-red-200 text-red-800 border-red-500 {% elif category == 'error' %} bg-red-200 text-red-800 border-red-500 {% else %} bg-gray-200 text-gray-800 border-gray-500 {% endif %} border-l-4 p-4 mt-4 mb-4 rounded-md"
+      >
+        <p>{{ mesg }}</p>
+      </div>
+      {% endfor %} {% endif %} {% endwith %} {% block content %}{% endblock %}
+    </main>
+
+    <!-- Block Modal -->
+    {% block modals %}{% endblock %}
+
+    <!-- Block Scripts -->
+    {% block scripts %}
+    <script>
+      // Close Flash Message
+      setTimeout(closeFlash, 5000);
+
+      function closeFlash() {
+        document.getElementById("flash-container").remove();
+      }
+    </script>
+    {% endblock %}
+  </body>
+</html>

@@ -1,0 +1,10 @@
+{% block flash_content %}
+{% with messages = get_flashed_messages(with_categories=true) %} {% if messages %} {% for category, mesg in messages %}
+    <div
+      id="flash-container"
+      class="{% if category == 'success' %} bg-green-200 text-green-800 border-green-500 {% elif category == 'info' %} bg-blue-200 text-blue-800 border-blue-500 {% elif category == 'danger' %} bg-red-200 text-red-800 border-red-500 {% elif category == 'error' %} bg-red-200 text-red-800 border-red-500 {% else %} bg-gray-200 text-gray-800 border-gray-500 {% endif %} border-l-4 p-4 mt-4 mb-4 rounded-md"
+    >
+      <p>{{ mesg }}</p>
+    </div>
+{% endfor %} {% endif %} {% endwith %}
+{% endblock %}

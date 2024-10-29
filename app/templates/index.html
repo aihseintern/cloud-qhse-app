@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Menu Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <style>
+      /* The flip card container */
+      .flip-card {
+        background-color: transparent;
+        width: 300px;
+        height: 200px;
+        perspective: 1000px; /* Creates the 3D effect */
+      }
+
+      /* Container for the inner flip card */
+      .flip-card-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        transition: transform 0.8s;
+        transform-style: preserve-3d;
+      }
+
+      /* Horizontal flip on hover */
+      .flip-card:hover .flip-card-inner {
+        transform: rotateY(180deg);
+      }
+
+      /* Position the front and back side */
+      .flip-card-front,
+      .flip-card-back {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden; /* Ensures that only one side is visible at a time */
+      }
+
+      /* Front side */
+      .flip-card-front {
+        background-color: white;
+        color: black;
+      }
+
+      /* Back side */
+      .flip-card-back {
+        background-color: dodgerblue;
+        color: white;
+        transform: rotateY(180deg);
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100">
+    <!-- Container -->
+    <div class="container mx-auto p-4">
+      <div class="flex items-center justify-between mb-8">
+        <!-- Title -->
+        <h1 class="text-3xl font-bold">PT Salam Pacific Indonesia Lines</h1>
+
+        <div class="flex space-x-4">
+          <!-- Search bar -->
+          <input
+            type="text"
+            name="search"
+            placeholder="Search"
+            class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            oninput="filterMenus()"
+          />
+
+          <!-- Logout -->
+          <a
+            href="{{ url_for('auth.logout') }}"
+            class="text-red-500 hover:text-red-600 flex items-center space-x-2"
+          >
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Grid to display menus -->
+      {% if menus %}
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {% for menu in menus %}
+        <div class="flip-card">
+          <div class="flip-card-inner">
+            <!-- Front Side of the Card -->
+            <div
+              class="bg-white p-6 rounded-lg shadow-lg flip-card-front cursor-pointer flex flex-col items-center justify-center mb-4"
+            >
+              {% if menu.file %}
+              <img
+                src="data:image/png;base64,{{ menu.file | b64encode }}"
+                alt="{{ menu.title }}"
+                class="w-full h-36 rounded-lg"
+              />
+              {% else %}
+              <img
+                src="/static/img/spil_logo.svg"
+                alt="{{ menu.title }}"
+                class="w-full h-36 rounded-lg"
+              />
+              {% endif %}
+
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">
+                {{ menu.title }}
+              </h3>
+            </div>
+
+            <!-- Back Side of the Card -->
+            <div
+              class="bg-white p-6 rounded-lg shadow-lg flip-card-back"
+              onclick="handleCardClick('{{ menu.url }}', {{ menu.permission_id }})"
+            >
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">
+                {{ menu.title }}
+              </h3>
+              <p class="text-gray-600 mt-4">
+                {% if menu.permission.description %}
+                <span class="font-medium"
+                  >{{ menu.permission.description }}</span
+                >
+                {% else %} No description available. {% endif %}
+              </p>
+
+              <p class="text-gray-600 mt-4">
+                Allowed Permission:
+                <span class="font-medium">{{ menu.permission.name }}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-gray-600">
+        No menus available.
+        <br />
+        Please contact the administrator for more information.
+      </p>
+      {% endif %}
+    </div>
+    <script>
+      function handleCardClick(url, permissionId) {
+        if (url && url !== 'None') {
+          window.location.href = url;
+        } else {
+          setSession(permissionId);
+        }
+      }
+
+      // Function to call api set session
+      function setSession(permissionId) {
+        // Prepare the form data
+        let formData = new FormData();
+        formData.append("id", permissionId);
+
+        // Send a POST request to the Flask backend
+        fetch("/set_session", {
+          method: "POST",
+          body: formData,
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.status === "success") {
+              // Handle success response
+              window.location.href = "{{ url_for('report.dashboard') }}";
+            } else {
+              // Handle error response
+              alert("Error: " + data.message);
+            }
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            alert("An error occurred while setting the session.");
+          });
+      }
+
+      function filterMenus() {
+        let search = document.querySelector("input[name='search']").value;
+        let menus = document.querySelectorAll(".grid > div");
+
+        menus.forEach((menu) => {
+          let title = menu.querySelector("h3").textContent;
+          if (title.toLowerCase().includes(search.toLowerCase())) {
+            menu.style.display = "block";
+          } else {
+            menu.style.display = "none";
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

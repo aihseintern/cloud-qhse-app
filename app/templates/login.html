@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <script src="app/static/js/flash_script.js"></script>
+  </head>
+
+  <body class="bg-gray-100 flex items-center justify-center h-screen">
+    <header style="position: fixed; top: 0; width: auto; z-index: 1000; text-align: center; padding: 10px 0;">
+      <!-- Flash Message Section -->
+      {% block flash_content %}
+      {% include 'flash_template.html' %}
+      {% endblock %}
+    </header>
+    
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+      <h2 class="text-2xl font-bold mb-6">Login</h2>
+      <form
+        method="POST"
+        action="{{ url_for('auth.login') }}"
+        class="space-y-4"
+      >
+        {{ form.hidden_tag() }}
+        <div class="flex flex-col">
+          {{ form.nik.label(class="text-sm font-semibold mb-1") }} {{
+          form.nik(class="border border-gray-300 p-2 rounded-md") }}
+        </div>
+        <div>
+          {{ form.submit(class="bg-blue-500 text-white p-2 rounded-md cursor-pointer") }}
+        </div>
+      </form>
+
+      <p class="mt-4 text-center text-sm">
+        Don't have an account?
+        <a href="{{ url_for('auth.register') }}" class="text-blue-500"
+          >Register here</a
+        >.
+      </p>
+
+      <!-- Forgot Account -->
+      <p class="mt-4 text-center text-sm">
+        Forgot your account?
+        <a href="{{ url_for('auth.forgot') }}" class="text-blue-500"
+          >Click here</a
+        >.
+      </p>
+    </div>
+
+    <script>
+      // const togglePassword = document.getElementById("togglePassword");
+      // const passwordInput = document.getElementById("password");
+      // const eyeIcon = document.getElementById("eyeIcon");
+
+      // togglePassword.addEventListener("click", function () {
+      //   const isPassword = passwordInput.getAttribute("type") === "password";
+      //   passwordInput.setAttribute("type", isPassword ? "text" : "password");
+      //   if (isPassword) {
+      //     eyeIcon.classList.remove("fa-eye-slash");
+      //     eyeIcon.classList.add("fa-eye");
+      //     eyeIcon.classList.remove("fa-eye");
+      //     eyeIcon.classList.add("fa-eye-slash");
+      //   }
+      // });
+    </script>
+  </body>
+</html>

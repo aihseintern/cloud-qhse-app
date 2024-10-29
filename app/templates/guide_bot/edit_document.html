@@ -1,0 +1,37 @@
+{% extends "base.html" %} {% block title %}Edit Document{% endblock %} {% block
+content %}
+<div class="container mx-auto mt-0 p-6 bg-white shadow-md rounded-md">
+  <h2 class="text-2xl font-semibold mb-6">Edit Document</h2>
+
+  <form
+    method="POST"
+    action="{{ url_for('guide_bot.edit_document', id=document.id) }}"
+    enctype="multipart/form-data"
+  >
+    {{ form.hidden_tag() }}
+    <div class="mb-4">
+      {{ form.title.label(class="block text-gray-700 font-medium mb-2") }} {{
+      form.title(class="block w-full px-4 py-2 border rounded-lg shadow-sm
+      focus:outline-none focus:ring-2 focus:ring-blue-500") }}
+    </div>
+    <div class="mb-4">
+      {{ form.file.label(class="block text-gray-700 font-medium mb-2") }} {{
+      form.file(class="block w-full px-4 py-2 border rounded-lg shadow-sm
+      focus:outline-none focus:ring-2 focus:ring-blue-500") }}
+    </div>
+    <div class="flex justify-end">
+      <a
+        href="{{ url_for('guide_bot.manage_documents') }}"
+        class="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition duration-300"
+        >Cancel</a
+      >
+      <button
+        type="submit"
+        class="ml-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300"
+      >
+        Save
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

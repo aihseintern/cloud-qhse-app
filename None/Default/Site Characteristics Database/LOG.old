@@ -1,0 +1,4 @@
+2024/10/29-11:59:20.467 f88e Table #7: 3 entries OK
+2024/10/29-11:59:20.467 f88e Table #4: 65 entries OK
+2024/10/29-11:59:20.469 f88e Archiving /home/spil/project/qhse-app/None/Default/Site Characteristics Database/MANIFEST-000001: OK
+2024/10/29-11:59:20.475 f88e **** Repaired leveldb /home/spil/project/qhse-app/None/Default/Site Characteristics Database; recovered 2 files; 1093 bytes. Some data may have been lost. ****

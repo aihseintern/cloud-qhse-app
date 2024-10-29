@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Explorer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin: 5px 0;
+        }
+        a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .folder {
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>File Explorer</h1>
+    <!-- Upload Folder -->
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="files[]" multiple webkitdirectory>
+        <button type="submit">Upload</button>
+    </form>
+
+    <!-- Upload Files -->
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="files[]" multiple>
+        <button type="submit">Upload</button>
+    </form>
+
+    <!-- Create Folder -->
+    <form method="POST">
+        <input type="text" name="folder_name" placeholder="Folder Name">
+        <button type="submit">Create Folder</button>
+    </form>
+
+    <h2>Files and Folders in: {{ subdir or '/' }}</h2>
+    <ul>
+        {% for content in file_structure.values() %}
+            {% for d in content.dirs %}
+            <li>📁 <a href="{{ url_for('index', subdir=(subdir + '/' + d).strip('/') ) }}">{{ d }}/</a></li>
+            {% endfor %}
+            {% for f in content.files %}
+            <li>📄 <a href="{{ url_for('uploaded_file', filename=(subdir + '/' + f).strip('/')) }}">{{ f }}</a></li>
+            {% endfor %}
+        {% endfor %}
+    </ul>
+
+    {% if subdir %}
+    {% set subdir_parts = subdir.split('/') %}
+    {% if subdir_parts|length > 1 %}
+    <a href="{{ url_for('index', subdir=subdir.rsplit('/', 1)[0]) }}">⬅ Back</a>
+    {% else %}
+    <a href="{{ url_for('index') }}">⬅ Back</a> 
+    {% endif %}
+{% endif %} 
+</body>
+</html>

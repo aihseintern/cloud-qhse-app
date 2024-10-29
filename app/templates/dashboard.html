@@ -1,0 +1,582 @@
+{% extends "base.html" %} 
+{% block title %} Dashboard {% endblock %} 
+{% block content %}
+<div class="container mx-auto px-4 lg:px-6">
+
+  <!-- Dashboard Overview Section -->
+  <div class="bg-white p-4 rounded-lg shadow mb-8">
+    <h3 class="text-xl font-semibold mb-2">Dashboard Overview</h3>
+  </div>
+
+  <!-- Dashboard Cards Section -->
+  <div class="flex justify-center mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      <!-- Real-Time Date and Time Card -->
+      <div class="bg-gradient-to-r from-blue-400 to-blue-500 text-white p-4 rounded-lg shadow-lg flex flex-col items-center justify-center transition-transform transform hover:scale-105">
+        <i class="fas fa-clock fa-2x mb-2"></i>
+        <h3 class="text-lg font-semibold">Timestamp</h3>
+        <p id="currentDatetime" class="text-lg font-bold"></p>
+      </div>
+
+      <!-- Model Count -->
+      <div class="bg-gradient-to-r from-fuchsia-400 to-fuchsia-500 text-white p-4 rounded-lg shadow-lg flex flex-col items-center justify-center transition-transform transform hover:scale-105">
+        <i class="fas fa-robot fa-2x mb-2"></i>
+        <h3 class="text-lg font-semibold">Model Count</h3>
+        <p class="text-2xl font-bold">{{ all_weight }}</p>
+      </div>
+
+      <!-- CCTV Count -->
+      <div class="bg-gradient-to-r from-teal-400 to-teal-500 text-white p-4 rounded-lg shadow-lg flex flex-col items-center justify-center transition-transform transform hover:scale-105">
+        <i class="fas fa-video fa-2x mb-2"></i>
+        <h3 class="text-lg font-semibold">CCTV Count</h3>
+        <p class="text-2xl font-bold">{{ all_cctv }}</p>
+      </div>
+
+      <!-- Detector Count -->
+      <div class="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white p-4 rounded-lg shadow-lg flex flex-col items-center justify-center transition-transform transform hover:scale-105">
+        <i class="fas fa-bullseye fa-2x mb-2"></i>
+        <h3 class="text-lg font-semibold">Detector Count</h3>
+        <p class="text-2xl font-bold">{{ all_detectors }}</p>
+      </div>
+
+      <!-- Count of Detected Objects -->
+      <div class="bg-gradient-to-r from-red-400 to-red-500 text-white p-4 rounded-lg shadow-lg flex flex-col items-center justify-center transition-transform transform hover:scale-105">
+        <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+        <h3 class="text-lg font-semibold">All Detected Objects</h3>
+        <p class="text-2xl font-bold">{{ all_detection }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter by Location Section -->
+  <div class="mb-8 flex justify-center">
+    <form method="GET" action="{{ url_for('report.dashboard') }}" id="location-form">
+      <div class="flex items-center space-x-4">
+        <label for="location" class="text-gray-700 font-semibold text-lg">Selected Location:</label>
+        <div class="relative w-60">
+          <select name="location" id="location" class="appearance-none w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-lg py-3 px-4 rounded-2xl shadow-lg hover:shadow-2xl focus:ring-4 focus:ring-purple-400 focus:outline-none transition-all duration-300 ease-in-out transform hover:scale-105" onchange="document.getElementById('location-form').submit();">
+            {% for loc in cctv_locations %}
+            <option value="{{ loc }}" class="text-black text-base" {% if selected_location == loc or loop.first %} selected {% endif %}>{{ loc }}</option>
+            {% endfor %}
+          </select>
+          <span class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none transform transition-transform duration-200 ease-in-out">
+            <svg class="w-6 h-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </span>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Daily Detected Objects Section -->
+  <div class="mb-12">
+    <h3 class="text-2xl font-semibold mb-6 text-gray-800 text-center">Daily Detected Objects (Last 24 Hours)</h3>
+    <div class="grid grid-cols-1 gap-6">
+      <div class="bg-white p-4 shadow-lg rounded-lg">
+        <canvas id="dailyDetectedBarChart" style="width: 100%; height: 400px;"></canvas>
+      </div>
+      <div class="flex flex-col md:flex-row gap-6">
+        <div class="bg-white p-4 shadow-lg rounded-lg w-full">
+          <canvas id="dailyDetectedPieChart" style="width: 100%; height: 400px;"></canvas>
+        </div>
+        <div class="bg-white p-4 shadow-lg rounded-lg w-full">
+          <canvas id="dailyHorizontalBarChart" style="width: 100%; height: 400px;"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weekly Detected Objects Section -->
+  <div class="mb-12">
+    <h3 class="text-2xl font-semibold mb-6 text-gray-800 text-center">Weekly Detected Objects (Last 7 Days)</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <div class="bg-white p-4 shadow-lg rounded-lg">
+        <canvas id="ppeBarChart" style="width: 100%; height: 400px;"></canvas>
+      </div>
+      <div class="bg-white p-4 shadow-lg rounded-lg">
+        <canvas id="ppePieChart" style="width: 100%; height: 400px;"></canvas>
+      </div>
+    </div>
+    <div class="bg-white p-4 shadow-lg rounded-lg max-w-4xl mx-auto">
+      <canvas id="objectTypeBarChart" style="width: 100%; height: 400px;"></canvas>
+    </div>
+  </div>
+
+</div>
+
+
+
+  {% endblock %} 
+  {% block scripts %} 
+  {{ super() }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <script>
+    function updateDateTime() {
+        const now = new Date();
+        const optionsTime = { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true };
+        const datetimeString = `${String(now.getDate()).padStart(2, '0')} ${now.toLocaleString('default', { month: 'short' })} ${now.getFullYear()}, ${now.toLocaleTimeString('en-US', optionsTime)}`;
+        document.getElementById('currentDatetime').innerText = datetimeString;
+    }
+
+    setInterval(updateDateTime, 1000);
+    updateDateTime();
+
+    function getRandomColor(alpha = 1) {
+        const r = Math.floor(Math.random() * 256);
+        const g = Math.floor(Math.random() * 256);
+        const b = Math.floor(Math.random() * 256);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return `${date.getDate()} ${date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`;
+    }
+
+    const dailyLabels = {{ daily_labels|tojson }}
+
+    const formattedLabels = dailyLabels.map(label => {
+    const date = new Date(label); // Convert string to Date object
+
+    // Format the date to "HH:MM, DD Mon"
+    const hours = date.getUTCHours().toString().padStart(2, '0');
+    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+    const day = date.getUTCDate();
+    const month = date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
+
+    return `${hours}:${minutes}, ${day} ${month}`;
+    });
+
+    console.log(formattedLabels);
+
+    const dailyCounts = {{ daily_counts|tojson }}; // Should contain the count of detected objects for each hour
+    const dailyDetectedBarChartCtx = document.getElementById('dailyDetectedBarChart').getContext('2d');
+
+    new Chart(dailyDetectedBarChartCtx, {
+        type: 'bar', // Changed from 'line' to 'bar'
+        data: {
+            labels: formattedLabels, // Use the labels for the x-axis
+            datasets: [{
+                label: 'Detected Objects',
+                data: dailyCounts, // Use the counts for the y-axis
+                backgroundColor: getRandomColor(0.6), // Darker background color for bars
+                borderColor: 'rgba(255, 255, 255, 1)', // Border color of the bars
+                borderWidth: 2,
+                fill: true // Not needed for bar charts, but you can keep it if you want the bars filled
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: 'black',
+                        font: {
+                            size: 15,
+                            weight: 'bold'
+                        }
+                    }
+                },
+                title: {
+                    display: true,
+                    text: 'Detected Objects per Hour',
+                    color: '#333',
+                    font: {
+                        size: 19,
+                        weight: 'bold'
+                    }
+                },
+                datalabels: {
+                    color: 'black',
+                    font: {
+                        weight: 'bold',
+                        size: 12
+                    },
+                    anchor: 'end',
+                    align: 'end',
+                    formatter: value => value,
+                    offset: 4,
+                    borderRadius: 4,
+                    padding: 6,
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                    borderColor: 'rgba(0, 0, 0, 0.3)',
+                    borderWidth: 1
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Hour',
+                        color: '#555',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        }
+                    },
+                    ticks: {
+                        color: 'rgba(32, 33, 33, 0.8)',
+                        font: {
+                            size: 12,
+                            weight: 'bold'
+                        }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grace: '20%',
+                    title: {
+                        display: true,
+                        text: 'Detected Objects',
+                        color: '#555',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        }
+                    },
+                    ticks: {
+                        color: 'rgba(32, 33, 33, 0.8)',
+                        font: {
+                            size: 12,
+                            weight: 'bold'
+                        },
+                        stepSize: 2, // Force y-axis to increment by 1
+                        callback: function(value) {
+                            return Number.isInteger(value) ? value : ''; // Display only whole numbers
+                        }
+                    }
+                }
+            }
+        },
+        plugins: [ChartDataLabels]
+    });
+
+
+    const dailyDetectedObjectPieChartCtx = document.getElementById('dailyDetectedPieChart').getContext('2d');
+
+    // Data for the pie chart (provided by Flask)
+    const dailyPieChartLabels = {{ daily_pie_chart_types|tojson }};
+    const dailyPieChartCounts = {{ daily_pie_chart_counts|tojson }};
+    const dailyPieColors = dailyPieChartCounts.map(() => getRandomColor());
+
+    new Chart(dailyDetectedObjectPieChartCtx, {
+        type: 'doughnut',
+        data: {
+            labels: dailyPieChartLabels, // Use pieChartLabels for labels
+            datasets: [{
+                data: dailyPieChartCounts, // Use pieChartCounts for data
+                backgroundColor: dailyPieColors,
+                borderColor: 'rgba(255, 255, 255, 1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            responsive: true,
+            plugins: {
+                legend: {
+                    labels: { color: 'black', font: { size: 15, weight: 'bold' } }
+                },
+                title: {
+                    display: true,
+                    text: 'Detected Objects by Camera Location',
+                    color: '#333',
+                    font: { size: 19, weight: 'bold' }
+                },
+                datalabels: {
+                    formatter: (value, context) => {
+                        const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                        return (value / total * 100).toFixed(2) + '%';
+                    },
+                    color: 'black',
+                    font: { size: 15, weight: 'bold' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                    borderRadius: 3,
+                    padding: 4
+                }
+            }
+        },
+        plugins: [ChartDataLabels]
+    });
+
+    const dailyObjectTypeLabels = {{ daily_object_types|tojson }};
+    const dailyObjectTypeCounts = {{ daily_object_counts|tojson }};
+    const dailyBackgroundColors = dailyObjectTypeCounts.map(() => getRandomColor(0.6));
+    const dailyObjectTypeBarChartCtx = document.getElementById('dailyHorizontalBarChart').getContext('2d');
+    const dailyObjectTypeBarChart = new Chart(dailyObjectTypeBarChartCtx, {
+        type: 'bar',
+        data: {
+            labels: dailyObjectTypeLabels,
+            datasets: [{
+                data: dailyObjectTypeCounts,
+                backgroundColor: dailyBackgroundColors,
+                borderColor: dailyBackgroundColors.map(color => color.replace(/0\.6\)/, '1)')),
+                borderWidth: 2
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false // Set to true if you want to show the legend
+                },
+                title: {
+                    display: true,
+                    text: 'Most Frequently Detected Object Types',
+                    color: '#333',
+                    font: { size: 19, weight: 'bold' }
+                },
+            datalabels: {
+                                color: 'black',
+                                font: { weight: 'bold', size: 12 },
+                                anchor: 'end',
+                                align: 'end',
+                                formatter: value => value,
+                                offset: 4,
+                                borderRadius: 4,
+                                padding: 6,
+                                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                borderColor: 'rgba(0, 0, 0, 0.3)',
+                                borderWidth: 1
+                            }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Count',
+                        color: '#555',
+                        font: { size: 16, weight: 'bold' }
+                    },
+                    beginAtZero: true,
+                    grace: '10%',
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    ticks: {
+                        color: 'rgba(32, 33, 33, 0.8)',
+                        font: { size: 14, weight: 'bold' }
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Object Types',
+                        color: '#555',
+                        font: { size: 16, weight: 'bold' }
+                    },
+                    ticks: {
+                        color: 'rgba(32, 33, 33, 0.8)',
+                        font: { size: 14, weight: 'bold' }
+                    }
+                }
+            }
+        },
+        plugins: [ChartDataLabels]
+    });
+
+
+        const labels = {{ weekly_labels|tojson }}.map(formatDate);
+        const numDetectedObjectPerDay = {{ weekly_counts|tojson }};
+
+        const ppeBarChartCtx = document.getElementById('ppeBarChart').getContext('2d');
+        const dataset = [{
+            type: 'bar',
+            label: 'Detected Objects',
+            data: numDetectedObjectPerDay,
+            backgroundColor: getRandomColor(),
+            borderColor: 'rgba(255, 255, 255, 1)',
+            borderWidth: 2,
+            stack: 'Stack 0'
+        }];
+
+        new Chart(ppeBarChartCtx, {
+            type: 'bar',
+            data: { labels: labels, datasets: dataset },
+            options: {
+                plugins: {
+                    legend: {
+                        labels: { color: 'black', font: { size: 15, weight: 'bold' } }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Detected Objects per Day',
+                        color: '#333',
+                        font: { size: 19, weight: 'bold' }
+                    },
+                    datalabels: {
+                        color: 'black',
+                        font: { weight: 'bold', size: 12 },
+                        anchor: 'end',
+                        align: 'end',
+                        formatter: value => value,
+                        offset: 4,
+                        borderRadius: 4,
+                        padding: 6,
+                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                        borderColor: 'rgba(0, 0, 0, 0.3)',
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date',
+                            color: '#555',
+                            font: { size: 16, weight: 'bold' }
+                        },
+                        stacked: true,
+                        ticks: { color: 'rgba(32, 33, 33, 0.8)', font: { size: 12, weight: 'bold' } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grace: '10%',
+                        title: {
+                            display: true,
+                            text: 'Detected Objects',
+                            color: '#555',
+                            font: { size: 16, weight: 'bold' }
+                        },
+                        stacked: true,
+                        ticks: { color: 'rgba(32, 33, 33, 0.8)', font: { size: 12, weight: 'bold' } }
+                    }
+                }
+            },
+            plugins: [ChartDataLabels]
+        });
+
+    const weeklyDetectedObjectPieChartCtx = document.getElementById('ppePieChart').getContext('2d');
+
+    // Data for the pie chart (provided by Flask)
+    const weeklyPieChartLabels = {{ weekly_pie_chart_types|tojson }};
+    const weeklyPieChartCounts = {{ weekly_pie_chart_counts|tojson }};
+    const weeklyPieColors = weeklyPieChartCounts.map(() => getRandomColor());
+
+    new Chart(weeklyDetectedObjectPieChartCtx, {
+        type: 'doughnut',
+        data: {
+            labels: weeklyPieChartLabels, // Use pieChartLabels for labels
+            datasets: [{
+                data: weeklyPieChartCounts, // Use pieChartCounts for data
+                backgroundColor: weeklyPieColors,
+                borderColor: 'rgba(255, 255, 255, 1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            responsive: true,
+            plugins: {
+                legend: {
+                    labels: { color: 'black', font: { size: 15, weight: 'bold' } }
+                },
+                title: {
+                    display: true,
+                    text: 'Detected Objects by Camera Location',
+                    color: '#333',
+                    font: { size: 19, weight: 'bold' }
+                },
+                datalabels: {
+                    formatter: (value, context) => {
+                        const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                        return (value / total * 100).toFixed(2) + '%';
+                    },
+                    color: 'black',
+                    font: { size: 15, weight: 'bold' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                    borderRadius: 3,
+                    padding: 4
+                }
+            }
+        },
+        plugins: [ChartDataLabels]
+    });
+
+
+    const weeklyObjectTypeLabels = {{ weekly_object_types|tojson }};
+    const weeklyObjectTypeCounts = {{ weekly_object_counts|tojson }};
+    const weeklyBackgroundColors = weeklyObjectTypeCounts.map(() => getRandomColor(0.6));
+    const weeklyObjectTypeBarChartCtx = document.getElementById('objectTypeBarChart').getContext('2d');
+    const weeklyObjectTypeBarChart = new Chart(weeklyObjectTypeBarChartCtx, {
+        type: 'bar',
+        data: {
+            labels: weeklyObjectTypeLabels,
+            datasets: [{
+                data: weeklyObjectTypeCounts,
+                backgroundColor: weeklyBackgroundColors,
+                borderColor: weeklyBackgroundColors.map(color => color.replace(/0\.6\)/, '1)')),
+                borderWidth: 2
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false // Set to true if you want to show the legend
+                },
+                title: {
+                    display: true,
+                    text: 'Most Frequently Detected Object Types',
+                    color: '#333',
+                    font: { size: 19, weight: 'bold' }
+                },
+            datalabels: {
+                                color: 'black',
+                                font: { weight: 'bold', size: 12 },
+                                anchor: 'end',
+                                align: 'end',
+                                formatter: value => value,
+                                offset: 4,
+                                borderRadius: 4,
+                                padding: 6,
+                                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                borderColor: 'rgba(0, 0, 0, 0.3)',
+                                borderWidth: 1
+                            }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Count',
+                        color: '#555',
+                        font: { size: 16, weight: 'bold' }
+                    },
+                    beginAtZero: true,
+                    grace: '10%',
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    ticks: {
+                        color: 'rgba(32, 33, 33, 0.8)',
+                        font: { size: 14, weight: 'bold' }
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Object Types',
+                        color: '#555',
+                        font: { size: 16, weight: 'bold' }
+                    },
+                    ticks: {
+                        color: 'rgba(32, 33, 33, 0.8)',
+                        font: { size: 14, weight: 'bold' }
+                    }
+                }
+            }
+        },
+        plugins: [ChartDataLabels]
+    });
+
+  </script>
+{% endblock %}

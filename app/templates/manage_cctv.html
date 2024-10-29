@@ -1,0 +1,219 @@
+{% extends "base.html" %} {% block title %}Manage CCTV{% endblock %} {% block
+content %}
+<div class="container mx-auto p-6 bg-white shadow-md rounded-md">
+  <h2 class="text-2xl font-semibold mb-6">Manage CCTV</h2>
+
+  <form method="POST" action="{{ url_for('cctv.create') }}" class="space-y-4">
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+      <div id="exist-location" class="flex-group">
+        {{ form.location_id.label(class="block text-sm font-medium text-gray-700 inline-block") }}
+        <span id="open-p" class="text-sm text-blue-500 cursor-pointer ml-2" onclick="openLocation()">New
+          Location</span>
+        {{ form.location_id(class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500") }}
+      </div>
+
+      <div id="new-location" class="flex-group hidden">
+        {{ form.location_name.label(class="block text-sm font-medium text-gray-700 inline-block") }}
+        <span id="close-p" class="text-sm text-blue-500 cursor-pointer ml-2 hidden"
+          onclick="closeLocation()">Existing Location
+        </span>
+        {{ form.location_name(class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500")}}
+      </div>
+    </div>
+    <div class="form-group">
+      {{ form.ip_address.label(class="block text-gray-700 font-medium mb-2") }}
+      {{ form.ip_address(size=50, class_='block w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500') }}
+    </div>
+    <div class="form-group">
+      {{ form.type.label(class="block text-gray-700 font-medium mb-2") }} {{
+      form.type(class_='block w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500') }}
+    </div>
+    <div class="form-group">
+      {{ form.submit(class_='w-full py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300') }}
+    </div>
+  </form>
+
+  <h3 class="text-xl font-semibold mt-8 mb-4">Existing CCTV</h3>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full bg-white shadow-md rounded-lg overflow-hidden">
+      <thead>
+        <tr class="bg-gray-100">
+          <th class="text-left py-3 px-4 font-medium text-gray-700">
+            Location
+          </th>
+          <th class="text-left py-3 px-4 font-medium text-gray-700">
+            IP Address
+          </th>
+          <th class="text-left py-3 px-4 font-medium text-gray-700">Type</th>
+          <th class="text-left py-3 px-4 font-medium text-gray-700">Status</th>
+          <th class="text-left py-3 px-4 font-medium text-gray-700">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for camera in cameras %}
+        <tr class="border-t">
+          <td class="py-3 px-4 text-gray-800">{{ camera.cctv_location.name }}</td>
+          <td class="py-3 px-4 text-gray-800">{{ camera.ip_address }}</td>
+          <td class="py-3 px-4 text-gray-800">{{ camera.type }}</td>
+          <td class="py-3 px-4 text-gray-800">
+            {{ "Active" if camera.status else "Inactive"}}
+          </td>
+          <td class="py-3 px-4 text-gray-800">
+            <a href="{{ url_for('cctv.stream', cctv_id=camera.id) }}"
+              class="inline-block px-3 py-1 bg-blue-500 text-white text-sm font-medium rounded hover:bg-blue-600 transition duration-300">View</a>
+            <!-- Edit Button -->
+            <button type="button"
+              class="inline-block px-3 py-1 bg-yellow-500 text-white text-sm font-medium rounded hover:bg-yellow-600 transition duration-300"
+              data-modal-target="#editModal-{{ camera.id }}">
+              Edit
+            </button>
+
+            <!-- Edit Modal -->
+            <div id="editModal-{{ camera.id }}"
+              class="fixed inset-0 flex items-center justify-center z-50 hidden modal">
+              <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+                <h2 class="text-xl font-semibold mb-4">Edit CCTV</h2>
+                <form method="POST" action="{{ url_for('cctv.edit', id=camera.id) }}" class="space-y-4">
+                  {{ form.hidden_tag() }}
+                  <div class="form-group">
+                    <div id="exist-location-edit" class="flex-group">
+                      <label for="location_id" class="block text text-gray-700 font-medium mb-2">Location</label>
+                      <span id="open-p" class="text-sm text-blue-500 cursor-pointer ml-2" onclick="openLocationEdit()">New
+                        Location</span>
+                      <select name="location_id" id="location_id"
+                        class="block w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        {% for id, name in form.location_id.choices %}
+                        <option value={{ id }} {% if id == camera.cctv_location_id %} selected {% endif %}>
+                          {{ name }}
+                        </option>
+                        {% endfor %}
+                      </select>
+                    </div>
+
+                    <div id="new-location-edit" class="flex-group hidden">
+                      {{ form.location_name.label(class="block text-sm font-medium text-gray-700 inline-block") }}
+                      <span id="close-p" class="text-sm text-blue-500 cursor-pointer ml-2 hidden"
+                        onclick="closeLocationEdit()">Existing Location
+                      </span>
+                      {{ form.location_name(class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500")}}
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    {{ form.ip_address.label(class="block text-gray-700 font-medium mb-2") }} {{ form.ip_address(size=50,
+                    class_='block w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500', value=camera.ip_address) }}
+                  </div>
+
+                  <div class="form-group">
+                    {{ form.type.label(class="block text-gray-700 font-medium mb-2") }} 
+                    {{ form.type(class_='block w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500', value=camera.type) }}
+                  </div>
+
+                  <div class="form-group">
+                    <label for="status" class="block text gray-700 font-medium mb-2">Status</label>
+                    <select name="status" id="status"
+                      class="block w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value={{1 if camera.status else 0}}>
+                        {{ "Active" if camera.status else "Inactive" }}
+                      </option>
+                      <option value={{0 if camera.status else 1}}>
+                        {{ "Inactive" if camera.status else "Active" }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <button type="submit" class="mt-4 w-full py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition duration-300"> 
+                    Save
+                  </button>
+                </form>
+                <button type="button"
+                  class="mt-4 w-full py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition duration-300"
+                  data-modal-close="#editModal-{{ camera.id }}">
+                  Cancel
+                </button>
+              </div>
+            </div>
+
+            <form action="{{ url_for('cctv.delete', id=camera.id) }}" method="POST" class="inline-block">
+              {{ form.csrf_token }} {% if camera.is_used %}
+              <button type="button"
+                class="inline-block px-3 py-1 bg-gray-300 text-gray-600 text-sm font-medium rounded cursor-not-allowed"
+                title="Cannot delete a camera that is currently in use by detectors">
+                Delete
+              </button>
+
+              {% else %}
+              <button type="submit"
+                class="inline-block px-3 py-1 bg-red-500 text-white text-sm font-medium rounded hover:bg-red-600 transition duration-300">
+                Delete
+              </button>
+              {% endif %}
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %} {% block scripts %} {{ super() }}
+<script>
+  const modalTriggers = document.querySelectorAll("[data-modal-target]");
+  const modalCloses = document.querySelectorAll("[data-modal-close]");
+  const modalOverlay = document.querySelector(".modal-overlay");
+
+  modalTriggers.forEach((trigger) => {
+    trigger.addEventListener("click", () => {
+      const modal = document.querySelector(trigger.dataset.modalTarget);
+      modal.classList.add("flex");
+      modal.classList.remove("hidden");
+    });
+  });
+
+  modalCloses.forEach((close) => {
+    close.addEventListener("click", () => {
+      const modal = document.querySelector(close.dataset.modalClose);
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    });
+  });
+
+  modalOverlay.addEventListener("click", () => {
+    const modals = document.querySelectorAll(".modal");
+    modals.forEach((modal) => {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    });
+  });
+
+  function openLocation() {
+    document.getElementById("new-location").classList.remove("hidden");
+    document.getElementById("exist-location").classList.add("hidden");
+    document.getElementById("open-p").classList.add("hidden");
+    document.getElementById("close-p").classList.remove("hidden");
+  }
+
+  function closeLocation() {
+    document.getElementById("new-location").classList.add("hidden");
+    document.getElementById("exist-location").classList.remove("hidden");
+    document.getElementById("open-p").classList.remove("hidden");
+    document.getElementById("close-p").classList.add("hidden");
+  }
+
+  function openLocationEdit() {
+    document.getElementById("new-location-edit").classList.remove("hidden");
+    document.getElementById("exist-location-edit").classList.add("hidden");
+    document.getElementById("open-p").classList.add("hidden");
+    document.getElementById("close-p").classList.remove("hidden");
+  }
+
+  function closeLocationEdit() {
+    document.getElementById("new-location-edit").classList.add("hidden");
+    document.getElementById("exist-location-edit").classList.remove("hidden");
+    document.getElementById("open-p").classList.remove("hidden");
+    document.getElementById("close-p").classList.add("hidden");
+  }
+</script>
+{% endblock %}

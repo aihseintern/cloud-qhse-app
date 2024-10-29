@@ -1,0 +1,371 @@
+{% extends "base.html" %} {% block title %} {{ title }} {% endblock %} {% block
+content %}
+<div
+  class="container mx-auto mt-0 p-6 bg-white shadow-md rounded-md grid grid-cols-5 gap-6"
+>
+  <!-- left div -->
+  <div class="col-span-3 bg-gray-100 p-6 over h-sreen overflow-y-auto">
+    <h2 class="text-2xl font-semibold mb-6">Manage Models</h2>
+
+    <!-- Instructions for Uploading Model -->
+    <div class="mb-6">
+      <h3 class="text-xl font-semibold mb-2">How to Get a .pt Model File</h3>
+      <p class="text-gray-700">
+        To get a model `.pt` file, you can train your model using popular deep
+        learning frameworks such as PyTorch. After training, save your model
+        using the following code:
+      </p>
+
+      <div class="mt-6 mb-4">
+        <p class="font-semibold">Get dataset from Roboflow</p>
+        <p class="text-gray-700">
+          You can get this code from Roboflow. Go to the project versions,
+          select a version, click 'Download Dataset,' choose the desired YOLO
+          version format, then select the 'Show download code' option and click
+          'Continue.' After that, you will be prompted with a copyable code to
+          download the dataset.
+        </p>
+        <pre
+          class="bg-gray-200 p-4 rounded-md text-sm whitespace-pre-wrap break-words mt-2"
+        >
+!pip install roboflow
+
+from roboflow import Roboflow
+rf = Roboflow(api_key="6LlLWsyq0DStxF9WgrZ1")
+project = rf.workspace("seekhelp").project("seek-help-detection")
+version = project.version(3)
+dataset = version.download("yolov8")
+            </pre
+        >
+      </div>
+
+      <div class="my-4">
+        <p class="font-semibold">Steps to train a YOLO model</p>
+        <p class="text-gray-700">
+          Fill the data parameter with the path to the data.yaml file extracted
+          from the Roboflow code earlier, and adjust the epochs parameter as
+          needed.
+        </p>
+        <pre
+          class="bg-gray-200 p-4 rounded-md text-sm whitespace-pre-wrap break-words mt-2"
+        >
+from ultralytics import YOLO
+model = YOLO("yolov8n.pt")
+model.train(data="/content/seek-help-detection-3/data.yaml", epochs=100, imgsz=640, patience=10, save=True, seed=42)
+            </pre
+        >
+      </div>
+    </div>
+  </div>
+
+  <!-- right div -->
+  <div class="col-span-2 bg-gray-100 p-6 h-screen sticky top-0">
+    <!-- Add New Model Button -->
+    <button
+      type="button"
+      class="mb-4 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300"
+      data-modal-target="#modelModal"
+      data-modal-toggle="modelModal"
+    >
+      + Add New Model
+    </button>
+
+    <!-- Models Table -->
+    <div class="overflow-x-auto bg-white rounded-lg shadow-lg mt-6">
+      <table class="min-w-full border-collapse text-sm leading-normal">
+        <thead>
+          <tr class="bg-gray-100 text-gray-700 text-left">
+            <th class="border-b-2 border-gray-300 px-4 py-3">Model Name</th>
+            <th class="border-b-2 border-gray-300 px-4 py-3">Detector Type</th>
+            <th class="border-b-2 border-gray-300 px-4 py-3">Date Created</th>
+            <th class="border-b-2 border-gray-300 px-4 py-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="text-gray-600">
+          {% for model in models %}
+          <tr class="hover:bg-gray-50 transition-colors duration-200">
+            <td class="border-b border-gray-200 px-4 py-2 font-medium">
+              {{ model.name }}
+            </td>
+            <td class="border-b border-gray-200 px-4 py-2">
+              {{ model.detector_type.name }}
+            </td>
+            <td class="border-b border-gray-200 px-4 py-2">
+              {{ model.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+            </td>
+            <td class="border-b border-gray-200 px-4 py-2">
+              <div class="flex space-x-4">
+                <!-- Edit -->
+                <button
+                  title="Edit"
+                  type="button"
+                  class="text-blue-500 hover:text-blue-700 transition-colors"
+                  data-modal-target="#editModelModal-{{ model.id }}"
+                  data-modal-toggle="editModelModal"
+                >
+                  <i class="fas fa-edit"></i>
+                </button>
+
+                <!-- Edit Modal -->
+                <div
+                  id="editModelModal-{{ model.id }}"
+                  class="hidden fixed z-10 inset-0 overflow-y-auto"
+                >
+                  <div class="flex items-center justify-center min-h-screen">
+                    <div class="bg-white rounded-lg shadow-xl w-1/3 p-6">
+                      <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">{{ title }}</h3>
+                        <button
+                          class="text-gray-400 hover:text-gray-600 focus:outline-none"
+                          data-close-modal="#editModelModal-{{ model.id }}"
+                        >
+                          ✖
+                        </button>
+                      </div>
+
+                      <form
+                        method="POST"
+                        enctype="multipart/form-data"
+                        action="{{ url_for('weight.edit', id=model.id) }}"
+                      >
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-4">
+                          {{ form.name.label(class="block text-gray-700") }} 
+                          {{ form.name(class="block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm", value=model.name) }}
+                        </div>                       
+                        
+                        <div id="exist-detector-type-edit" class="flex-group mb-4">
+                          <label for="detector_type" class="block text-sm font-medium text-gray-700 inline-block">Detector Type</label>
+                          <span
+                            id="open-p-edit"
+                            class="text-sm text-blue-500 cursor-pointer ml-2"
+                            onclick="openDetectorTypeEdit()"
+                            >New Detector Type</span
+                          >
+                          <select
+                            name="detector_type"
+                            id="detector_type"
+                            class="block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm"
+                          >
+                            {% for id, name in form.detector_type_id.choices %}
+                            <option
+                              value={{ id }}
+                              {% if id == model.detector_type.id %} 
+                              selected
+                              {% endif %}
+                            >
+                              {{ name }}
+                            </option>
+                            {% endfor %}
+                          </select>
+                        </div>
+                
+                        <div id="new-detector-type-edit" class="flex-group hidden mb-4">
+                          {{ form.detector_type_name.label(class="block text-sm font-medium
+                          text-gray-700 inline-block") }}
+                          <span
+                            id="close-p-edit"
+                            class="text-sm text-blue-500 cursor-pointer ml-2 hidden"
+                            onclick="closeDetectorTypeEdit()"
+                            >Existing Detector Type
+                          </span>
+                          {{ form.detector_type_name(class="block w-full px-4 py-2 border
+                          border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500
+                          focus:border-blue-500")}}        
+                        </div>
+
+                        <div class="mb-4">
+                          <div class="flex justify-between items-center">
+                            {{ form.file.label(class="block text-gray-700") }}
+                            <span class="text-gray-500 text-sm">Leave blank if you don't want to change the model file</span>
+                          </div>
+                          {{ form.file(class="block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm") }}              
+                        </div>
+
+                        <button
+                          type="submit"
+                          class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300"
+                        >
+                          Save
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Delete -->
+                <form
+                  action="{{ url_for('weight.delete', id=model.id) }}"
+                  method="POST"
+                  class="inline-block"
+                >
+                  <button
+                    title="Delete"
+                    type="submit"
+                    class="text-red-500 hover:text-red-700 transition-colors"
+                    onclick="if(confirm('Are you sure you want to delete this model? This will also delete related data such as detectors, notification rules, and detected objects.')) {
+                      var userInput = prompt('Please type DELETE to confirm:');
+                      if(userInput === 'DELETE') { return true; } 
+                    } 
+                    return false;">                  
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for Adding -->
+<div id="modelModal" class="hidden fixed z-10 inset-0 overflow-y-auto">
+  <div class="flex items-center justify-center min-h-screen">
+    <div class="bg-white rounded-lg shadow-xl w-1/3 p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">{{ title }}</h3>
+        <button
+          class="text-gray-400 hover:text-gray-600 focus:outline-none"
+          id="closeAddModal"
+        >
+          ✖
+        </button>
+      </div>
+
+      <form
+        method="POST"
+        enctype="multipart/form-data"
+        action="{{ url_for('weight.create', id=model.id if model else None) }}"
+      >
+        {{ form.hidden_tag() }}
+        
+        <div class="mb-4">
+          {{ form.name.label(class="block text-gray-700") }} {{
+          form.name(class="block w-full px-4 py-2 border border-gray-300
+          rounded-lg shadow-sm") }}
+        </div>
+
+        <div id="exist-detector-type" class="flex-group mb-4">
+          {{ form.detector_type_id.label(class="block text-sm font-medium
+          text-gray-700 inline-block") }}
+          <span
+            id="open-p"
+            class="text-sm text-blue-500 cursor-pointer ml-2"
+            onclick="openDetectorType()"
+            >New Detector Type</span
+          >
+          {{ form.detector_type_id(class="block w-full px-4 py-2 border
+          border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500
+          focus:border-blue-500") }}
+        </div>
+
+        <div id="new-detector-type" class="flex-group hidden mb-4">
+          {{ form.detector_type_name.label(class="block text-sm font-medium
+          text-gray-700 inline-block") }}
+          <span
+            id="close-p"
+            class="text-sm text-blue-500 cursor-pointer ml-2 hidden"
+            onclick="closeDetectorType()"
+            >Existing Detector Type
+          </span>
+          {{ form.detector_type_name(class="block w-full px-4 py-2 border
+          border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500
+          focus:border-blue-500")}}        
+        </div>
+
+        <div class="mb-4">
+          {{ form.file.label(class="block text-gray-700") }} {{
+          form.file(class="block w-full px-4 py-2 border border-gray-300
+          rounded-lg shadow-sm") }}
+        </div>
+
+        <div class="flex justify-end">
+          <button
+            type="submit"
+            class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            id="cancelAddModal"
+            class="ml-2 px-4 py-2 bg-gray-400 text-white font-semibold rounded-lg hover:bg-gray-500 transition duration-300"
+          >
+            Close
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %} {% block scripts %}
+{{ super() }}
+<script>
+  // Open modal when Add button is clicked
+  document.querySelectorAll("[data-modal-toggle]").forEach((button) => {
+    button.addEventListener("click", function () {
+      const target = document.querySelector(
+        button.getAttribute("data-modal-target")
+      );
+      target.classList.remove("hidden");
+    });
+  });
+
+  // Close modal when close button or "Close" is clicked
+  document.querySelectorAll("[data-close-modal]").forEach((button) => {
+    button.addEventListener("click", function () {
+      const target = document.querySelector(
+        button.getAttribute("data-close-modal")
+      );
+      target.classList.add("hidden");
+    });
+  });
+
+  document
+    .getElementById("closeAddModal")
+    .addEventListener("click", function () {
+      document.getElementById("modelModal").classList.add("hidden");
+    });
+
+  document
+    .getElementById("cancelAddModal")
+    .addEventListener("click", function () {
+      document.getElementById("modelModal").classList.add("hidden");
+    });
+
+    function openDetectorType() {
+    document.getElementById("new-detector-type").classList.remove("hidden");
+    document.getElementById("exist-detector-type").classList.add("hidden");
+    document.getElementById("open-p").classList.add("hidden");
+    document.getElementById("close-p").classList.remove("hidden");
+  }
+
+  function closeDetectorType() {
+    document.getElementById("new-detector-type").classList.add("hidden");
+    document.getElementById("exist-detector-type").classList.remove("hidden");
+    document.getElementById("open-p").classList.remove("hidden");
+    document.getElementById("close-p").classList.add("hidden");
+  }
+
+  function openDetectorTypeEdit() {
+    document.getElementById("new-detector-type-edit").classList.remove("hidden");
+    document.getElementById("exist-detector-type-edit").classList.add("hidden");
+    document.getElementById("open-p-edit").classList.add("hidden");
+    document.getElementById("close-p-edit").classList.remove("hidden");
+  }
+
+  function closeDetectorTypeEdit() {
+    document.getElementById("new-detector-type-edit").classList.add("hidden");
+    document.getElementById("exist-detector-type-edit").classList.remove("hidden");
+    document.getElementById("open-p-edit").classList.remove("hidden");
+    document.getElementById("close-p-edit").classList.add("hidden");
+  }
+
+
+</script>
+{% endblock %}

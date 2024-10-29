@@ -1,0 +1,45 @@
+{% extends "base.html" %} {% block title %}View Detected Object{% endblock %} {%
+block content %}
+<div class="container mx-auto mt-0 p-6 bg-white shadow-md rounded-md">
+  <h2 class="text-2xl font-semibold mb-6">Detected Object Details</h2>
+
+  <div class="mb-4">
+    <h3 class="text-lg font-semibold">Object ID:</h3>
+    <p>{{ detected_object.id }}</p>
+  </div>
+
+  <div class="mb-4">
+    <h3 class="text-lg font-semibold">Detector ID:</h3>
+    <p>{{ detected_object.detector_id }}</p>
+  </div>
+
+  <div class="mb-4">
+    <h3 class="text-lg font-semibold">Name:</h3>
+    <p>{{ detected_object.name }}</p>
+  </div>
+
+  <div class="mb-4">
+    <h3 class="text-lg font-semibold">Timestamp:</h3>
+    <p>{{ detected_object.timestamp }}</p>
+  </div>
+
+  <div class="mb-4">
+    <h3 class="text-lg font-semibold">Frame:</h3>
+    {% if detected_object.frame %}
+    <img
+      src="data:image/jpeg;base64,{{ detected_object.frame | b64encode }}"
+      alt="Detected Frame"
+      class="rounded-lg shadow-md"
+    />
+    {% else %}
+    <p>No frame available.</p>
+    {% endif %}
+  </div>
+
+  <a
+    href="{{ url_for('gesture.gesture_detection') }}"
+    class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300"
+    >Back to Detection List</a
+  >
+</div>
+{% endblock %}

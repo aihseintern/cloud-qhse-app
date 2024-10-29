@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}User Approval{% endblock %}
+{% block content %}
+    <h1 class="text-2xl font-bold mb-6">Manage User Permissions</h1>
+    
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <!-- User list -->
+        {% for user in users %}
+        <div class="bg-white p-4 shadow-lg rounded-lg">
+            <h2 class="text-lg font-bold">{{ user.name }}</h2>
+            <p class="text-gray-600">{{ user.email }}</p>
+            <button 
+                class="mt-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+                onclick="openModal('{{ user.id }}', '{{ user.name }}')">
+                Manage Permissions
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Permission Management Modal -->
+    <div id="modal" class="fixed z-50 inset-0 overflow-y-auto hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white w-full max-w-lg p-6 rounded-lg shadow-lg">
+                <h2 id="modal-title" class="text-2xl font-bold mb-4">Manage Permissions for User</h2>
+                <form id="permission-form" method="POST" action="{{ url_for('admin.user_permission') }}">
+                    <input type="hidden" name="user_id" id="modal-user-id">
+                    
+                    <div class="mb-4">
+                        <label class="block text-gray-700">Select Permissions:</label>
+                        {% for perm_id, perm_name in form.permission_id.choices %}
+                        <div>
+                            <input type="checkbox" id="perm-{{ perm_id }}" name="permission_id" value="{{ perm_id }}" class="mr-2 permission-checkbox">
+                            <label for="perm-{{ perm_id }}">{{ perm_name }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="flex justify-end space-x-4">
+                        <button type="button" class="bg-gray-500 text-white px-4 py-2 rounded-lg" onclick="closeModal()">Cancel</button>
+                        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded-lg">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openModal(userId, userName) {
+            // Set user ID in the hidden input field
+            document.getElementById('modal-user-id').value = userId;
+            document.getElementById('modal-title').textContent = `Manage Permissions for ${userName}`;
+
+            // Clear all previous selections
+            document.querySelectorAll('.permission-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+
+            // Fetch current permissions for the user
+            fetch(`/admin/user-permission/${userId}`)
+                .then(response => response.json())
+                .then(data => {
+                    data.permissions.forEach(permissionId => {
+                        let checkbox = document.getElementById(`perm-${permissionId}`);
+                        if (checkbox) {
+                            checkbox.checked = true;
+                        }
+                    });
+                });
+
+            // Show modal
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+    </script>
+{% endblock %}

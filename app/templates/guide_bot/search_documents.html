@@ -1,0 +1,116 @@
+{% extends "base.html" %} {% block title %}Manage Documents{% endblock %}
+{% block styles %}
+<!-- CSS for Custom Context Menu -->
+<style>
+  .custom-menu {
+    display: none;
+    position: absolute;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+  }
+
+  .custom-menu ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .custom-menu ul li {
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+
+  .custom-menu ul li:hover {
+    background-color: #f5f5f5;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-0 p-6 bg-white shadow-md rounded-md">
+  <h2 class="text-3xl font-semibold mb-8 text-gray-800">Manage Documents</h2>
+ 
+  <!-- Demo GuideBot -->
+  <a href="{{ url_for('guide_bot.chat') }}"
+    class="mt-4 inline-block px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-300">
+    🤖 Demo GuideBot
+  </a>
+
+  <!-- Search Bar -->
+  <form id="searchForm" action="{{ url_for('guide_bot.manage_documents') }}" method="get"
+    class="mt-6 flex items-center space-x-2">
+    <input type="text" name="search_query" placeholder="Search documents..."
+      value="{{ request.args.get('search_query', '') }}"
+      class="block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+    <button type="submit"
+      class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300">
+      🔍
+    </button>
+  </form>
+
+  <!-- Documents Table -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8 mb-4">
+    <!-- Tampilkan folder dan file -->
+    <div class="p-4 bg-gray-100 rounded-lg shadow-md">    
+      <div class="mb-4">
+          <!-- Daftar files -->
+          {% if documents %}
+              <ul>                  
+                    {% for document in documents %}
+                        {% if document.title != 'index' %}
+                        <li class="mt-2">
+                            <a href="#" class="text-blue-500 hover:underline">
+                                <i class="fas fa-file-alt mr-2"></i> {{ document.title }}
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}                  
+              </ul>          
+          {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Context Menu HTML -->
+  <div id="customContextMenu" class="custom-menu">
+    <ul>
+      <li onclick="renameItem()" class="hover:bg-gray-100">Rename</li>
+      <li onclick="deleteItem()" class="hover:bg-gray-100">Delete</li>
+      <li onclick="downloadItem()" class="hover:bg-gray-100">Download</li>
+    </ul>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- JavaScript for handling context menu -->
+<script>
+  // Function to show custom context menu
+  function showContextMenu(event, itemName, itemType, itemId) {
+    event.preventDefault();  // Prevent default right-click menu
+
+    const menu = document.getElementById('customContextMenu');
+    menu.style.display = 'block';
+    menu.style.left = event.pageX + 'px';
+    menu.style.top = event.pageY + 'px';
+
+    // Store item details for further actions (delete, rename)
+    menu.setAttribute('data-name', itemName);
+    menu.setAttribute('data-type', itemType);
+    menu.setAttribute('data-id', itemId);
+  }
+
+  // Function to hide the context menu
+  function hideContextMenu() {
+    const menu = document.getElementById('customContextMenu');
+    menu.style.display = 'none';
+  }
+
+  // Add event listener to hide context menu on click elsewhere
+  document.addEventListener('click', hideContextMenu);
+</script>
+{% endblock %}

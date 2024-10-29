@@ -1,0 +1,101 @@
+{% extends "aios/base.html" %} {% block title %}Edit Document{% endblock %}
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GuideBot Chat</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+  <!-- Font -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" />
+  <style>
+    body {
+      font-family: "Inter", sans-serif;
+    }
+  </style>
+</head>
+{% block content %}
+
+<body class="bg-gray-100">
+  <div class="container mx-auto mt-0 p-6 bg-white shadow-lg rounded-lg max-w-3xl h-full">
+    <h1 class="text-4xl font-extrabold text-gray-900 flex items-center">
+      GuideBot <span class="ml-2">🤖️</span>
+    </h1>
+    <div class="chat-container mt-8 space-y-6">
+      <!-- GuideBot's First Response -->
+      <div class="flex justify-start">
+        <div
+          class="bg-gradient-to-r from-gray-200 to-gray-300 text-gray-800 p-4 rounded-lg shadow-md flex items-center space-x-2">
+          <span class="material-icons text-xl text-gray-600">smart_toy</span>
+          <pre class="whitespace-pre-wrap font-medium font-sans">
+{{ generated[0] }}</pre>
+        </div>
+      </div>
+
+      <!-- User and Bot Chat Loop -->
+      {% for i in range(past|length) %}
+      <!-- User's Message -->
+      <div class="flex justify-end">
+        <div class="bg-blue-100 text-blue-900 p-4 rounded-lg shadow-md flex items-center space-x-2">
+          <span class="material-icons text-xl text-blue-600">person</span>
+          <span>{{ past[i] }}</span>
+        </div>
+      </div>
+      <!-- Bot's Response -->
+      <div class="flex justify-start">
+        <div
+          class="bg-gradient-to-r from-gray-200 to-gray-300 text-gray-800 p-4 rounded-lg shadow-md flex flex-col space-y-4">
+          <div class="flex items-center space-x-2">
+            <span class="material-icons text-xl text-gray-600">smart_toy</span>
+            <pre class="whitespace-pre-wrap font-medium font-sans">
+{{ generated[i+1]['message'] | safe }}</pre>
+          </div>
+
+          <!-- Related Documents -->
+          {% if generated[i+1]['source_documents'] %}
+          <div class="mt-2">
+            <h3 class="text-lg font-semibold mb-2">Dokumen Terkait</h3>
+            <div class="flex flex-col space-y-1">
+              {% for metadata in generated[i+1]['source_documents'] %}
+              <div class="flex items-center space-x-2">
+                <span class="material-icons text-blue-600">attach_file</span>
+                <a href="{{ url_for('guide_bot.get_document_file', document_id=metadata['document_id']) }}"
+                  class="text-blue-600 hover:underline">
+                  {{ metadata['title'] }}
+                </a>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% else %}
+          <!-- Hati hati terhadap jawaban -->
+          <div class="mt-2">            
+            <p class="text-gray-700">
+              <span class="font-semibold">Perhatian:</span>
+              Jawaban ini mungkin tidak akurat. Silakan cek kembali atau tanyakan ke pengelola.
+            </p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% endfor %}
+    </div>
+
+    <!-- Input Form -->
+    <form method="POST" class="mt-8">
+      <div class="flex">
+        <input type="text" name="user_input"
+          class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring focus:ring-blue-200"
+          placeholder="Ask me something..." />
+        <button
+          class="ml-4 px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition duration-300"
+          type="submit">
+          Send
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+</body>
+{% endblock %}

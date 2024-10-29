@@ -1,0 +1,216 @@
+{% extends "base.html" %} {% block title %} Dashboard {% endblock %} {% block
+content %}
+<div class="container mx-auto mt-6 p-6 bg-white shadow-lg rounded-lg">
+  <!-- Dashboard Cards Title -->
+  <div class="bg-white p-4 rounded-lg shadow mb-8">
+    <h3 class="text-xl font-semibold mb-2">Dashboard Overview</h3>
+  </div>
+  <!-- Dashboard Cards -->
+  <div class="flex justify-center mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <!-- Model Count -->
+      <div
+        class="bg-gradient-to-r from-blue-400 to-blue-500 text-white p-4 rounded-lg shadow-lg flex flex-col items-center justify-center transition-transform transform hover:scale-105"
+      >
+        <i class="fas fa-robot fa-2x mb-2"></i>
+        <h3 class="text-lg font-semibold">Model Count</h3>
+        <p class="text-2xl font-bold">{{ weight_count }}</p>
+      </div>
+
+      <!-- CCTV Count -->
+      <div
+        class="bg-gradient-to-r from-teal-400 to-teal-500 text-white p-4 rounded-lg shadow-lg flex flex-col items-center justify-center transition-transform transform hover:scale-105"
+      >
+        <i class="fas fa-video fa-2x mb-2"></i>
+        <h3 class="text-lg font-semibold">CCTV Count</h3>
+        <p class="text-2xl font-bold">{{ cctv_count }}</p>
+      </div>
+
+      <!-- Detector Count -->
+      <div
+        class="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white p-4 rounded-lg shadow-lg flex flex-col items-center justify-center transition-transform transform hover:scale-105"
+      >
+        <i class="fas fa-crosshairs fa-2x mb-2"></i>
+        <h3 class="text-lg font-semibold">Detector Count</h3>
+        <p class="text-2xl font-bold">{{ detector_count }}</p>
+      </div>
+
+      <!-- Count of Detected Objects -->
+      <div
+        class="bg-gradient-to-r from-red-400 to-red-500 text-white p-4 rounded-lg shadow-lg flex flex-col items-center justify-center transition-transform transform hover:scale-105"
+      >
+        <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+        <h3 class="text-lg font-semibold">Detected Objects</h3>
+        <p class="text-2xl font-bold">{{ detected_object_count }}</p>
+      </div>
+    </div>
+  </div>
+   <!-- Chart -->
+  <div class="flex flex-col">
+    <!-- Pie Chart and Bar Chart -->
+    <div
+      class="flex justify-center mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6"
+    >
+      <!-- Bar Chart -->
+      <div class="bg-white p-4 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-2">Daily Detected Objects</h3>
+        <canvas id="barChart" width="400" height="400"></canvas>
+      </div>
+
+      <!-- Pie Chart -->
+      <div class="bg-white p-4 rounded-lg shadow">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold mb-2">Detected Objects by Type</h3>
+          <label for="location-filter" class="hidden"> Location </label>
+          <select
+            id="location-filter"
+            onchange="updateChart()"
+            class="block w-1/2 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">All Locations</option>
+            {% for location in cctv_locations %}
+            <option value="{{ location.name }}">{{ location.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <canvas id="cctvPieChart" width="400" height="400"></canvas>
+      </div>
+    </div>
+
+    <!-- Scatter Chart -->
+    <div class="bg-white p-4 rounded-lg shadow w-full">
+      <h3 class="text-lg font-semibold mb-2">Detected Objects by Location</h3>
+      <canvas id="scatterChart" width="400" height="400"></canvas>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script>
+    // Data passed from Flask backend (detected_objects_by_cctv_type)
+    const dataByType = {{ detected_objects_by_cctv_type | tojson }};
+    const barLabels = {{ last_7_days | tojson }};
+    const barData = {{ daily_detected_object_counts | tojson }};
+    const scatterData = {{ scatter_data | tojson }};
+
+    let pieChartData = {};
+
+    // Initialize with the first location's data or combined data if 'all' is selected
+    function getPieData(location) {
+        const labels = Object.keys(dataByType[location] || {});
+        const data = Object.values(dataByType[location] || {});
+
+        return {
+            labels: labels,
+            datasets: [{
+                label: 'Objects Detected',
+                data: data,
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'],
+                hoverOffset: 4
+            }]
+        };
+    }
+
+    // Create pie chart instance
+    let pieCtx = document.getElementById('cctvPieChart').getContext('2d');
+    let pieChart = new Chart(pieCtx, {
+        type: 'pie',
+        data: getPieData(Object.keys(dataByType)[0]), // Default to first location
+    });
+
+    // Function to update chart based on selected location
+    function updateChart() {
+      const selectedLocation = document.getElementById('location-filter').value;
+
+      // Update data based on selected location
+      if (selectedLocation === 'all') {
+          pieChart.data = getPieData(Object.keys(dataByType)[0]);  // You can combine all locations if needed          
+      } else {
+          pieChart.data = getPieData(selectedLocation);          
+      }
+
+      pieChart.update();
+  }
+
+    // Create bar chart instance
+    const barCtx = document.getElementById('barChart').getContext('2d');
+    const barChart = new Chart(barCtx, {
+          type: 'bar',
+          data: {
+              labels: barLabels,  // 7 hari terakhir
+              datasets: [{
+                  label: 'Objects Detected',
+                  data: barData,  // Jumlah objek yang terdeteksi per hari
+                  backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                  borderColor: 'rgba(75, 192, 192, 1)',
+                  borderWidth: 1
+              }]
+          },
+          options: {
+              scales: {
+                  y: {
+                      beginAtZero: true  // Mulai dari 0 pada sumbu Y
+                  }
+              }
+          }
+      });
+
+    // Memformat data untuk scatter chart
+    const scatterChartData = scatterData.map(location => ({
+        x: location.x,  // Koordinat X
+        y: location.y,  // Koordinat Y
+        r: Math.sqrt(location.count) * 5,  // Radius untuk menggambarkan jumlah objek (diperbesar agar lebih terlihat)
+        label: location.name  // Nama lokasi
+    }));
+
+    // Membuat scatter chart dengan Chart.js
+    const ctx = document.getElementById('scatterChart').getContext('2d');
+    const scatterChart = new Chart(ctx, {
+        type: 'bubble',
+        data: {
+            datasets: [{
+                label: 'CCTV Locations',
+                data: scatterChartData,
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1,
+                pointBackgroundColor: scatterChartData.map(() => 'rgba(54, 162, 235, 0.2)'),
+                pointBorderColor: scatterChartData.map(() => 'rgba(54, 162, 235, 1)'),
+                hoverBackgroundColor: scatterChartData.map(() => 'rgba(255, 206, 86, 0.2)'),
+                hoverBorderColor: scatterChartData.map(() => 'rgba(255, 206, 86, 1)')
+            }]
+        },
+        options: {
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'X Coordinate'
+                    },
+                    beginAtZero: true
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Y Coordinate'
+                    },
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const locationName = context.raw.label;
+                            const objectCount = Math.pow(context.raw.r / 5, 2);
+                            return `${locationName}: ${objectCount.toFixed(0)} detected objects`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+</script>
+{% endblock %}

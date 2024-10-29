@@ -1,0 +1,251 @@
+{% extends "base.html" %} {% block title %}Menu{% endblock %} {% block styles %}
+<style>
+  /* The flip card container */
+  .flip-card {
+    background-color: transparent;
+    width: 300px;
+    height: 200px;
+    perspective: 1000px;
+    /* Creates the 3D effect */
+  }
+
+  /* Container for the inner flip card */
+  .flip-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.8s;
+    transform-style: preserve-3d;
+  }
+
+  /* Horizontal flip on hover */
+  .flip-card:hover .flip-card-inner {
+    transform: rotateY(180deg);
+  }
+
+  /* Position the front and back side */
+  .flip-card-front,
+  .flip-card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    /* Ensures that only one side is visible at a time */
+  }
+
+  /* Front side */
+  .flip-card-front {
+    background-color: white;
+    color: black;
+  }
+
+  /* Back side */
+  .flip-card-back {
+    background-color: dodgerblue;
+    color: white;
+    transform: rotateY(180deg);
+    cursor: pointer;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="container mx-auto px-4 py-8">
+  <!-- Search bar -->
+  <div class="flex items-center justify-between mb-8">
+    <h1 class="text-2xl font-bold">Manage Menu</h1>
+    <input type="text" name="search" placeholder="Search"
+      class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      oninput="filterMenus()" />
+  </div>
+
+  <!-- Display Menu Items -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    {% for menu in menus %}
+    <div class="flip-card">
+      <div class="flip-card-inner">
+        <!-- Front Side of the Card -->
+        <div
+          class="bg-white p-6 rounded-lg shadow-lg flip-card-front cursor-pointer flex flex-col items-center justify-center mb-4">
+          {% if menu.file %}
+          <img src="data:image/png;base64,{{ menu.file | b64encode }}" alt="{{ menu.title }}"
+            class="w-full h-36 rounded-lg" />
+          {% else %}
+          <img src="/static/img/spil_logo.svg" alt="{{ menu.title }}" class="w-full h-36 rounded-lg" />
+          {% endif %}
+
+          <h3 class="text-xl font-semibold text-gray-800 mb-2">
+            {{ menu.title }}
+          </h3>
+        </div>
+
+        <!-- Back Side of the Card -->
+        <div class="bg-white p-6 rounded-lg shadow-lg flip-card-back"
+          onclick="handleCardClick('{{ menu.url }}', {{ menu.permission_id }})">
+          <h3 class="text-xl font-semibold text-gray-800 mb-2">
+            {{ menu.title }}
+          </h3>
+          <p class="text-gray-600 mt-4">
+            {% if menu.permission.description %}
+            <span class="font-medium">{{ menu.permission.description }}</span>
+            {% else %} No description available. {% endif %}
+          </p>
+
+          <p class="text-gray-600 mt-4">
+            Allowed Permission:
+            <span class="font-medium">{{ menu.permission.name }}</span>
+          </p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Floating Add Button -->
+  <div class="fixed bottom-8 right-8">
+    <button
+      class="bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
+      onclick="openModal()">
+      + Add Menu
+    </button>
+  </div>
+
+  <!-- Modal Add Menu -->
+  <div id="modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center hidden">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+      <!-- Modal Header -->
+      <h2 class="text-2xl font-bold mb-4">Add New Menu</h2>
+
+      <!-- Modal Content (Form) -->
+      <form id="add-menu-form" method="POST" enctype="multipart/form-data"
+        class="space-y-6 bg-gray-100 p-6 rounded-lg shadow-lg">
+        {{ form.hidden_tag() }}
+
+        <div class="form-group">
+          {{ form.title.label(class="block text-sm font-medium text-gray-700")
+          }} {{ form.title(class="block w-full px-4 py-2 border border-gray-300
+          rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500") }}
+        </div>
+
+        <div class="form-group">
+          {{ form.url.label(class="block text-sm font-medium text-gray-700") }}
+          {{ form.url(class="block w-full px-4 py-2 border border-gray-300
+          rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500") }}
+        </div>
+
+        <div id="exist-permission" class="flex-group">
+          {{ form.permission_id.label(class="block text-sm font-medium
+          text-gray-700 inline-block") }}
+          <span id="open-p" class="text-sm text-blue-500 cursor-pointer ml-2" onclick="openPermission()">New
+            Permission</span>
+          {{ form.permission_id(class="block w-full px-4 py-2 border
+          border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500
+          focus:border-blue-500") }}
+        </div>
+
+        <div id="new-permission" class="flex-group hidden">
+          {{ form.permission_name.label(class="block text-sm font-medium
+          text-gray-700 inline-block") }}
+          <span id="close-p" class="text-sm text-blue-500 cursor-pointer ml-2 hidden"
+            onclick="closePermission()">Existing Permission
+          </span>
+          {{ form.permission_name(class="block w-full px-4 py-2 border
+          border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500
+          focus:border-blue-500")}} {{
+          form.permission_description.label(class="block text-sm font-medium
+          text-gray-700 inline-block") }} {{
+          form.permission_description(class="block w-full px-4 py-2 border
+          border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500
+          focus:border-blue-500")}}
+        </div>
+
+        <div class="form-group">
+          {{ form.file.label(class="block text-sm font-medium text-gray-700") }}
+          {{ form.file(class="block w-full px-4 py-2 border border-gray-300
+          rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500") }}
+        </div>
+        <!-- Modal Footer Buttons -->
+        <div class="flex justify-end space-x-4">
+          <button type="button" class="bg-gray-500 text-white px-4 py-2 rounded-lg" onclick="closeModal()">
+            Cancel
+          </button>
+          <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-lg">
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  function openModal() {
+    document.getElementById("modal").classList.remove("hidden");
+  }
+
+  function closeModal() {
+    document.getElementById("modal").classList.add("hidden");
+  }
+
+  function openPermission() {
+    document.getElementById("new-permission").classList.remove("hidden");
+    document.getElementById("exist-permission").classList.add("hidden");
+    document.getElementById("open-p").classList.add("hidden");
+    document.getElementById("close-p").classList.remove("hidden");
+  }
+
+  function closePermission() {
+    document.getElementById("new-permission").classList.add("hidden");
+    document.getElementById("exist-permission").classList.remove("hidden");
+    document.getElementById("open-p").classList.remove("hidden");
+    document.getElementById("close-p").classList.add("hidden");
+  }
+
+  function filterMenus() {
+    let search = document.querySelector("input[name='search']").value;
+    let menus = document.querySelectorAll(".grid > div");
+
+    menus.forEach((menu) => {
+      let title = menu.querySelector("h3").textContent;
+      if (title.toLowerCase().includes(search.toLowerCase())) {
+        menu.style.display = "block";
+      } else {
+        menu.style.display = "none";
+      }
+    });
+  }
+
+  function handleCardClick(url, permissionId) {
+    if (url && url !== 'None') {
+      window.location.href = url;
+    } else {
+      setSession(permissionId);
+    }
+  }
+
+  function setSession(permissionId) {
+    // Prepare the form data
+    let formData = new FormData();
+    formData.append("id", permissionId);
+
+    // Send a POST request to the Flask backend
+    fetch("/set_session", {
+      method: "POST",
+      body: formData,
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.status === "success") {
+          // Handle success response
+          window.location.href = "{{ url_for('report.dashboard') }}";
+        } else {
+          // Handle error response
+          alert("Error: " + data.message);
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        alert("An error occurred while setting the session.");
+      });
+  }
+</script>
+{% endblock %}

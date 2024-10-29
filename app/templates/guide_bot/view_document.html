@@ -1,0 +1,34 @@
+{% extends "base.html" %} {% block title %}View Document{% endblock %} {% block
+content %}
+<div class="container mx-auto mt-0 p-6 bg-white shadow-md rounded-md">
+  <h2 class="text-2xl font-semibold mb-6">{{ document.title }}</h2>
+  <p class="mb-4">
+    Created At : {{ document.created_at.strftime('%d %B %Y, %H:%M:%S') }}
+  </p>
+  <p class="mb-4">
+    Last Updated : {{ document.updated_at.strftime('%d %B %Y, %H:%M:%S') }}
+  </p>
+
+  <!-- Display file content or details -->
+  <div class="border rounded-md p-4 bg-gray-100">
+    {% if document.file %}
+    <!-- Display PDF file -->
+    <iframe
+      src="{{ url_for('guide_bot.get_document_file', document_id=document.id) }}"
+      class="w-full h-screen"
+      frameborder="0"
+    ></iframe>
+    {% else %}
+    <p class="text-gray-700">No file available for this document.</p>
+    {% endif %}
+  </div>
+
+  <div class="mt-4">
+    <a
+      href="{{ url_for('guide_bot.manage_documents') }}"
+      class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300"
+      >Back to Documents</a
+    >
+  </div>
+</div>
+{% endblock %}

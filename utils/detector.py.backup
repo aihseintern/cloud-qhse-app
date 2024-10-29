@@ -1,0 +1,226 @@
+import os
+import time
+from colorama import Back, Style
+import cv2
+from flask import current_app, session
+from flask_login import current_user
+from ultralytics import YOLO
+from app.models import Camera, Contact, Detector, DetectedObject, DetectorType, MessageTemplate, NotificationRule
+import threading
+from datetime import datetime
+import time
+import queue
+from utils.wa import send_whatsapp_message
+from collections import defaultdict
+
+class BaseDetector:    
+    message_queue = queue.Queue()  # Shared message queue for all detectors
+    
+    def __init__(self, detector_name):        
+        self.model = None
+        self.detector_name = detector_name
+        self.running = False
+        self.frames = {}
+        self.cctv_caps = {}
+        self.lock = threading.Lock()  # Thread-safe access to frames
+        self.frame_number = 0
+        self.detected_objects_tracker = defaultdict(lambda: {"count": 0, "last_frame": -1})
+        self.notification_rules = {}
+        # print(f"Initialized {detector_name} detector.")
+        
+        # Start the worker thread to process the message queue
+        if not hasattr(BaseDetector, 'worker_started'):
+            BaseDetector.worker_started = True
+            threading.Thread(target=self.message_worker, daemon=True).start()
+        
+    @staticmethod
+    def message_worker():
+        while True:
+            app, target, message, image_path = BaseDetector.message_queue.get()  # Get the next message from the queue
+            if app and target and message and image_path:
+                send_whatsapp_message(app, target, message, image_path)  # Send WhatsApp message using Selenium
+            BaseDetector.message_queue.task_done()  # Mark the task as done
+            time.sleep(1)  # Delay to prevent message collisions
+
+    def add_message_to_queue(self, app, target, message, image_path):
+        BaseDetector.message_queue.put((app, target, message, image_path))  # Add the message to the shared queue
+
+    def run(self, app):
+        self.running = True
+        self.app = app
+        active_threads = {}
+            
+        while self.running:
+            # detectors = Detector.query.join(Camera).filter(Detector.detector_type == self.detector_name, Detector.running == True).all()
+            detectors = Detector.query.join(Camera).join(DetectorType).filter(DetectorType.name == self.detector_name, Detector.running == True, Detector.role == "QHSE").all()
+            # if detectors:
+            #     print(f"Active detector type: {detectors[0].type}")  # Print the type of the first detector
+            # else:
+            #     print("No active detectors found.")
+            # Determine currently active detector IDs
+            active_detector_ids = [detector.id for detector in detectors]
+            active_detector_types = [detector.detector_type.name for detector in detectors]
+            
+            # inactive_detectors = Detector.query.join(Camera).filter(Detector.detector_type == self.detector_name, Detector.running == False).all()
+            inactive_detectors = Detector.query.join(Camera).join(DetectorType).filter(DetectorType.name == self.detector_name, Detector.running == False, Detector.role == "QHSE").all()
+            inactive_detector_ids = [detector.id for detector in inactive_detectors]
+            
+            # print('===========================')
+            # print(f"Active detector IDs: {active_detector_ids}")
+            # print(f"Active detector types: {active_detector_types}")
+            # print('===========================')
+            # print(f"Self detector name: {self.detector_name}")
+            # print(f"Inactive detector IDs: {inactive_detector_ids}")
+            # print('===========================')
+            
+            time.sleep(5)
+            for detector in detectors:
+                detector_id = detector.id
+                camera_ip = detector.camera.ip_address
+                detector_type = detector.detector_type.name
+                
+                # print(f"Detector ID: {detector_id}, Detector Type: {detector_type}, Camera IP: {camera_ip}")
+
+                # This should clarify what detector is being processed and associated
+                if detector_type != self.detector_name:
+                    print(f"Warning: Detector type mismatch. Expected {self.detector_name}, but got {detector_type}.")
+                
+                with self.lock:
+                    if camera_ip not in self.cctv_caps:
+                        cap = cv2.VideoCapture(0 if camera_ip == "http://0.0.0.0" else camera_ip)
+                        if cap.isOpened():
+                            self.cctv_caps[camera_ip] = cap
+                            # print(f"VideoCapture created for camera {camera_ip}.")
+                        else:
+                            print(f"Failed to open video stream for {camera_ip}.")
+                            continue
+                
+                # Create a stop event for this thread
+                stop_event = threading.Event()
+                t = threading.Thread(target=self.process_video, args=(camera_ip, detector_id, stop_event), daemon=True)
+                active_threads[detector_id] = (t, stop_event)
+                with app.app_context():
+                    t.start()
+                    
+            # Stop inactive detectors
+            self.stop_inactive_detectors(inactive_detector_ids, active_threads)
+                        
+                    
+            # Add a short sleep to avoid maxing out CPU usage
+            time.sleep(1)
+        
+       # Cleanup all threads when stopping
+        self.cleanup_threads(active_threads)
+            
+    def process_video(self, camera_ip, detector_id, stop_event):
+        self.load_weight(detector_id)
+        max_retries = 5
+        retry_interval = 5  # Interval between retries
+        
+        # print(f"Starting video processing for camera {camera_ip}, detector ID {detector_id}, model {self.detector_name}.")
+
+        for attempt in range(max_retries):
+            with self.lock:
+                cap = self.cctv_caps.get(camera_ip)
+            
+            if stop_event.is_set():
+                print(f"Stop event detected for detector ID {detector_id}. Exiting.")
+                return
+
+            if cap is not None and cap.isOpened():
+                print(f"Connected to {camera_ip} on attempt {attempt + 1}")
+                break
+            else:
+                print(f"Error: Cannot open video from {camera_ip}. Attempt {attempt + 1}/{max_retries}")
+                with self.lock:
+                    # Retry opening the video capture if needed
+                    cap = cv2.VideoCapture(0 if camera_ip == "http://0.0.0.0" else camera_ip)
+                    if cap.isOpened():
+                        self.cctv_caps[camera_ip] = cap  # Update the cap in the shared dictionary
+                        print(f"VideoCapture created for camera {camera_ip} after retry.")
+                        break
+                    else:
+                        time.sleep(retry_interval)
+        
+        else:
+            print(f"Failed to open video from {camera_ip} after {max_retries} attempts.")
+            return
+
+        while self.running and cap.isOpened():
+            if stop_event.is_set():
+                print(f"Stop event detected for detector ID {detector_id}. Exiting.")
+                break
+            
+            success, frame = cap.read()
+            if success:
+                # print(f"Frame captured for camera {camera_ip}, detector ID {detector_id}. Running model {self.detector_name}.")
+                # time.sleep(3)
+                results = self.model.track(frame, stream=False, persist=True)
+                self.process_results(results, frame, detector_id)
+            else:
+                print(f"Error: Lost connection to {camera_ip} for detector ID {detector_id}.")
+                break
+
+        with self.lock:
+            cap.release()
+            self.cctv_caps.pop(camera_ip, None)  # Remove the cap from the dictionary when done
+            print(f"Released VideoCapture for camera {camera_ip}, detector ID {detector_id}.")
+
+    def load_weight(self, detector_id):
+        with self.app.app_context():
+            detector = Detector.query.get(detector_id)
+            weight_path = detector.weight.path
+
+            if os.path.exists(weight_path):
+                # print(f"Loading weight from {weight_path}.")
+                self.model = YOLO(weight_path).to('cpu')
+            else:
+                with open(weight_path, 'wb') as f:
+                    f.write(detector.weight.file)
+                # print(f"Weight saved to {weight_path}.")
+                self.model = YOLO(weight_path).to('cpu')
+
+    def process_results(self, results, frame, detector_id):
+        raise NotImplementedError("This method should be overridden by subclasses")
+
+    def load_notification_rules(self, detector_id):
+        with self.app.app_context():
+            # rules = NotificationRule.query.filter_by(detector_id=detector_id).all()
+            rules = NotificationRule.query.join(Detector).join(MessageTemplate).join(Contact).filter(Detector.id == detector_id, Detector.permission_id == session.get('permission_id')).all()
+            self.notification_rules[detector_id] = rules
+
+    def release_caps(self):
+        with self.lock:
+            for camera_ip, cap in self.cctv_caps.items():
+                cap.release()
+                print(f"Released VideoCapture for camera {camera_ip}.")
+            self.cctv_caps.clear()
+            
+    def stop_inactive_detectors(self, inactive_detector_ids, active_threads):
+        print(f"Stopping inactive detectors with IDs: {inactive_detector_ids}")
+        for detector_id in inactive_detector_ids:
+            if detector_id in active_threads:  # Check if the detector_id is still in active_threads
+                print(f"Stopping detection for disabled camera {detector_id}.")
+                t, stop_event = active_threads.pop(detector_id, (None, None))  # Safely pop the thread
+                if t and stop_event:
+                    stop_event.set()
+                    t.join()
+                    print(f"Thread for detector {detector_id} stopped and joined.")
+            else:
+                print(f"Detector ID {detector_id} not found in active threads. Skipping.")
+            
+    def cleanup_threads(self, active_threads):
+        # print("Cleaning up all remaining threads.")
+        # Cleanup: Stop all remaining threads
+        for detector_id, (t, stop_event) in active_threads.items():
+            # print(f"Stopping detection for camera {detector_id} during cleanup.")
+            if t and stop_event:
+                stop_event.set()
+                t.join()
+                # print(f"Thread for detector {detector_id} stopped and joined.")
+
+        # Release all caps
+        self.release_caps()
+
+    def stop(self):
+        self.running = False

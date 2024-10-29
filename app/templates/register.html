@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <script src="app/static/js/flash_script.js"></script>
+  </head>
+
+  <body class="bg-gray-100 flex items-center justify-center h-screen">
+    <header
+      style="
+        position: fixed;
+        top: 0;
+        width: auto;
+        z-index: 1000;
+        text-align: center;
+        padding: 10px 0;
+      "
+    >
+      <!-- Flash Message Section -->
+      {% block flash_content %} {% include 'flash_template.html' %} {% endblock
+      %}
+    </header>
+
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+      <h2 class="text-2xl font-bold mb-6">Register</h2>
+
+      <form
+        method="POST"
+        action="{{ url_for('auth.register') }}"
+        class="space-y-4"
+      >
+        {{ form.hidden_tag() }}
+        <!-- NIK -->
+        <div class="flex flex-col">
+          {{ form.nik.label(class="text-sm font-semibold mb-1") }} {{
+          form.nik(class="border border-gray-300 p-2 rounded-md", id="nikInput")
+          }}
+        </div>
+
+        <!-- Name -->
+        <div class="flex flex-col">
+          {{ form.name.label(class="text-sm font-semibold mb-1") }} {{
+          form.name(class="border border-gray-300 p-2 rounded-md") }}
+        </div>
+
+        <!-- Email -->
+        <div class="flex flex-col">
+          {{ form.email.label(class="text-sm font-semibold mb-1") }} {{
+          form.email(class="border border-gray-300 p-2 rounded-md") }}
+        </div>
+
+        <!-- Phone -->
+        <div class="flex flex-col">
+          {{ form.phone.label(class="text-sm font-semibold mb-1") }} {{
+          form.phone(class="border border-gray-300 p-2 rounded-md") }}
+        </div>
+
+        <!-- Role -->
+        <div class="flex flex-col">
+          {{ form.role.label(class="text-sm font-semibold mb-1") }} {{
+          form.role(class="border border-gray-300 p-2 rounded-md") }}
+        </div>
+
+        <div>
+          {{ form.submit(class="bg-blue-500 text-white p-2 rounded-md
+          cursor-pointer") }}
+        </div>
+      </form>
+      <p class="mt-4 text-center text-sm">
+        Already have an account?
+        <a href="{{ url_for('auth.login') }}" class="text-blue-500"
+          >Login here</a
+        >.
+      </p>
+    </div>
+  </body>
+</html>
