@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>List Depo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.10.2/dist/cdn.min.js"
+      defer
+    ></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <style>
+      /* The flip card container */
+      .flip-card {
+        background-color: transparent;
+        width: 300px;
+        height: 200px;
+        perspective: 1000px;
+        /* Creates the 3D effect */
+      }
+
+      /* Container for the inner flip card */
+      .flip-card-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        transition: transform 0.8s;
+        transform-style: preserve-3d;
+      }
+
+      /* Horizontal flip on hover */
+      .flip-card:hover .flip-card-inner {
+        transform: rotateY(180deg);
+      }
+
+      /* Position the front and back side */
+      .flip-card-front,
+      .flip-card-back {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        /* Ensures that only one side is visible at a time */
+      }
+
+      /* Front side */
+      .flip-card-front {
+        background-color: white;
+        color: black;
+      }
+
+      /* Back side */
+      .flip-card-back {
+        background-color: dodgerblue;
+        color: white;
+        transform: rotateY(180deg);
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container mx-auto px-4 py-8">
+      <!-- Search bar -->
+      <div class="flex items-center justify-between mb-8">
+        <h1 class="text-2xl font-bold">Manage Depo</h1>
+        <input
+          type="text"
+          name="search"
+          placeholder="Search"
+          class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          oninput="filterMenus()"
+        />
+      </div>
+
+      <!-- Display Menu Items -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <!-- Card -->
+        <div class="flip-card">
+          <div class="flip-card-inner">
+            <!-- Front Side of the Card -->
+            <div
+              class="bg-white p-6 rounded-lg shadow-lg flip-card-front cursor-pointer flex flex-col items-center justify-center mb-4"
+            >
+              <img
+                src="/static/img/spil_logo.svg"
+                alt="Depo Langon"
+                class="w-full h-36 rounded-lg"
+              />
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">
+                Depo Langon
+              </h3>
+            </div>
+
+            <!-- Back Side of the Card -->
+            <div
+              class="bg-white p-6 rounded-lg shadow-lg flip-card-back"
+              onclick="setDepoSession('langon')"
+            >
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">
+                Depo Langon
+              </h3>
+            </div>
+          </div>
+        </div>
+        <!-- end card -->
+
+        <!-- Card -->
+        <div class="flip-card">
+          <div class="flip-card-inner">
+            <!-- Front Side of the Card -->
+            <div
+              class="bg-white p-6 rounded-lg shadow-lg flip-card-front cursor-pointer flex flex-col items-center justify-center mb-4"
+            >
+              <img
+                src="/static/img/spil_logo.svg"
+                alt="Depo Bayur"
+                class="w-full h-36 rounded-lg"
+              />
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">
+                Depo Bayur
+              </h3>
+            </div>
+
+            <!-- Back Side of the Card -->
+            <div
+              class="bg-white p-6 rounded-lg shadow-lg flip-card-back"
+              onclick="setDepoSession('bayur')"
+            >
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">
+                Depo Bayur
+              </h3>
+            </div>
+          </div>
+        </div>
+        <!-- end card -->
+
+        <!-- Card -->
+        <div class="flip-card">
+          <div class="flip-card-inner">
+            <!-- Front Side of the Card -->
+            <div
+              class="bg-white p-6 rounded-lg shadow-lg flip-card-front cursor-pointer flex flex-col items-center justify-center mb-4"
+            >
+              <img
+                src="/static/img/spil_logo.svg"
+                alt="Depo PKS"
+                class="w-full h-36 rounded-lg"
+              />
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">
+                Depo PKS
+              </h3>
+            </div>
+
+            <!-- Back Side of the Card -->
+            <div
+              class="bg-white p-6 rounded-lg shadow-lg flip-card-back"
+              onclick="setDepoSession('pks')"
+            >
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">
+                Depo PKS
+              </h3>
+            </div>
+          </div>
+        </div>
+        <!-- end card -->
+
+        <!-- Card -->
+        <div class="flip-card">
+          <div class="flip-card-inner">
+            <!-- Front Side of the Card -->
+            <div
+              class="bg-white p-6 rounded-lg shadow-lg flip-card-front cursor-pointer flex flex-col items-center justify-center mb-4"
+            >
+              <img
+                src="/static/img/spil_logo.svg"
+                alt="Depo 4"
+                class="w-full h-36 rounded-lg"
+              />
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">
+                Depo 4
+              </h3>
+            </div>
+
+            <!-- Back Side of the Card -->
+            <div
+              class="bg-white p-6 rounded-lg shadow-lg flip-card-back"
+              onclick="setDepoSession('4')"
+            >
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">
+                Depo 4
+              </h3>
+            </div>
+          </div>
+        </div>
+        <!-- end card -->
+
+        <!-- Card -->
+        <div class="flip-card">
+          <div class="flip-card-inner">
+            <!-- Front Side of the Card -->
+            <div
+              class="bg-white p-6 rounded-lg shadow-lg flip-card-front cursor-pointer flex flex-col items-center justify-center mb-4"
+            >
+              <img
+                src="/static/img/spil_logo.svg"
+                alt="Depo Japfa"
+                class="w-full h-36 rounded-lg"
+              />
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">
+                Depo Japfa
+              </h3>
+            </div>
+
+            <!-- Back Side of the Card -->
+            <div
+              class="bg-white p-6 rounded-lg shadow-lg flip-card-back"
+              onclick="setDepoSession('japfa')"
+            >
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">
+                Depo Japfa
+              </h3>
+            </div>
+          </div>
+        </div>
+        <!-- end card -->
+
+        <!-- Card -->
+        <div class="flip-card">
+          <div class="flip-card-inner">
+            <!-- Front Side of the Card -->
+            <div
+              class="bg-white p-6 rounded-lg shadow-lg flip-card-front cursor-pointer flex flex-col items-center justify-center mb-4"
+            >
+              <img
+                src="/static/img/spil_logo.svg"
+                alt="Local"
+                class="w-full h-36 rounded-lg"
+              />
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">
+                Local
+              </h3>
+            </div>
+
+            <!-- Back Side of the Card -->
+            <div
+              class="bg-white p-6 rounded-lg shadow-lg flip-card-back"
+              onclick="setDepoSession('local')"
+            >
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">
+                Local
+              </h3>
+            </div>
+          </div>
+        </div>
+        <!-- end card -->
+
+      </div>
+    </div>
+
+    <script>
+      function openModal() {
+        document.getElementById("modal").classList.remove("hidden");
+      }
+
+      function closeModal() {
+        document.getElementById("modal").classList.add("hidden");
+      }
+
+      function openPermission() {
+        document.getElementById("new-permission").classList.remove("hidden");
+        document.getElementById("exist-permission").classList.add("hidden");
+        document.getElementById("open-p").classList.add("hidden");
+        document.getElementById("close-p").classList.remove("hidden");
+      }
+
+      function closePermission() {
+        document.getElementById("new-permission").classList.add("hidden");
+        document.getElementById("exist-permission").classList.remove("hidden");
+        document.getElementById("open-p").classList.remove("hidden");
+        document.getElementById("close-p").classList.add("hidden");
+      }
+
+      function filterMenus() {
+        let search = document.querySelector("input[name='search']").value;
+        let menus = document.querySelectorAll(".grid > div");
+
+        menus.forEach((menu) => {
+          let title = menu.querySelector("h3").textContent;
+          if (title.toLowerCase().includes(search.toLowerCase())) {
+            menu.style.display = "block";
+          } else {
+            menu.style.display = "none";
+          }
+        });
+      }
+
+      function setDepoSession(depoLocation) {
+        console.log("depo location: " + depoLocation);
+        // Prepare the form data
+        let formData = new FormData();
+        formData.append("id", depoLocation);
+
+        // Send a POST request to the Flask backend
+        fetch("/set_depo_session", {
+          method: "POST",
+          body: formData,
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.status === "success") {
+              // Handle success response
+              window.location.href = "{{ url_for('auth.login') }}";
+            } else {
+              // Handle error response
+              alert("Error: " + data.message);
+            }
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            alert("An error occurred while setting the session.");
+          });
+      }
+    </script>
+  </body>
+</html>

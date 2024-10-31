@@ -1,20 +1,35 @@
-{% extends "base.html" %}
-{% block title %}Detected Objects{% endblock %}
-{% block content %}
+{% extends "base.html" %} {% block title %}Detected Objects{% endblock %} {%
+block content %}
 <div class="container mx-auto mt-0 p-6 bg-white shadow-md rounded-md">
-  <h2 class="text-2xl font-semibold mb-6">
-    Detected Objects
-  </h2>
+  <div class="container flex justify-between items-center">
+    <h2 class="text-2xl font-semibold mb-6">Detected Objects</h2>
+    <a
+      href="{{ url_for('report.download_detected_objects_excel') }}"
+      class="inline-block px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition duration-300 mb-3"
+    >
+      <i class="fas fa-file-excel"></i> Download to Excel
+    </a>
+  </div>
 
   <!-- Search -->
-  <form id="searchForm" action="{{ url_for('report.detected_object') }}" method="GET" class="flex items-center mb-6">
-    <input type="text" name="search_query" placeholder="Search detected object..."
+  <form
+    id="searchForm"
+    action="{{ url_for('report.detected_object') }}"
+    method="GET"
+    class="flex items-center mb-6"
+  >
+    <input
+      type="text"
+      name="search_query"
+      placeholder="Search detected object..."
       value="{{ request.args.get('search_query', '') }}"
-      class="block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-    <button 
-    title="Search"
-    type="submit"
-      class="ml-4 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300">
+      class="block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    />
+    <button
+      title="Search"
+      type="submit"
+      class="ml-4 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300"
+    >
       <i class="fas fa-search"></i>
     </button>
   </form>
@@ -34,18 +49,27 @@
     <tbody>
       {% for obj in detected_objects.items %}
       <tr>
-        <td class="border border-gray-300 px-4 py-2 text-center">{{ obj.id }}</td>
-        <td class="border border-gray-300 px-4 py-2 text-center">{{ obj.detector.weight.detector_type.name }}</td>
         <td class="border border-gray-300 px-4 py-2 text-center">
-          {{ obj.detector.cctv.cctv_location.name }} - {{ obj.detector.cctv.type }}
+          {{ obj.id }}
         </td>
-        <td class="border border-gray-300 px-4 py-2 text-center">{{ obj.name }}</td>
+        <td class="border border-gray-300 px-4 py-2 text-center">
+          {{ obj.detector.weight.detector_type.name }}
+        </td>
+        <td class="border border-gray-300 px-4 py-2 text-center">
+          {{ obj.detector.cctv.cctv_location.name }} - {{ obj.detector.cctv.type
+          }}
+        </td>
+        <td class="border border-gray-300 px-4 py-2 text-center">
+          {{ obj.name }}
+        </td>
         <td class="border border-gray-300 px-4 py-2 text-center">
           {{ obj.timestamp.strftime('%d %B %Y, %H:%M:%S') }}
         </td>
         <td class="border border-gray-300 px-4 py-2 text-center">
-          <a href="{{ url_for('report.view_object', object_id=obj.id) }}"
-            class="inline-block px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300">
+          <a
+            href="{{ url_for('report.view_object', object_id=obj.id) }}"
+            class="inline-block px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300"
+          >
             View
           </a>
         </td>
@@ -59,16 +83,19 @@
     <ul class="flex justify-center space-x-2">
       {% if detected_objects.has_prev %}
       <li>
-        <a href="{{ url_for('report.detected_object', page=detected_objects.prev_num, search_query=search_query) }}"
-          class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Previous</a>
+        <a
+          href="{{ url_for('report.detected_object', page=detected_objects.prev_num, search_query=search_query) }}"
+          class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+          >Previous</a
+        >
       </li>
-      {% endif %}
-
-      {% for page_num in detected_objects.iter_pages() %}
-      {% if page_num %}
+      {% endif %} {% for page_num in detected_objects.iter_pages() %} {% if
+      page_num %}
       <li>
-        <a href="{{ url_for('report.detected_object', page=page_num, search_query=search_query) }}"
-          class="px-4 py-2 {{ 'bg-blue-600 text-white' if page_num == detected_objects.page else 'bg-gray-200 text-gray-800' }} rounded-lg hover:bg-gray-300">
+        <a
+          href="{{ url_for('report.detected_object', page=page_num, search_query=search_query) }}"
+          class="px-4 py-2 {{ 'bg-blue-600 text-white' if page_num == detected_objects.page else 'bg-gray-200 text-gray-800' }} rounded-lg hover:bg-gray-300"
+        >
           {{ page_num }}
         </a>
       </li>
@@ -76,19 +103,16 @@
       <li>
         <span class="px-4 py-2">...</span>
       </li>
-      {% endif %}
-      {% endfor %}
-
-      {% if detected_objects.has_next %}
+      {% endif %} {% endfor %} {% if detected_objects.has_next %}
       <li>
-        <a href="{{ url_for('report.detected_object', page=detected_objects.next_num, search_query=search_query) }}"
-          class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Next</a>
+        <a
+          href="{{ url_for('report.detected_object', page=detected_objects.next_num, search_query=search_query) }}"
+          class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+          >Next</a
+        >
       </li>
       {% endif %}
     </ul>
   </div>
-
 </div>
-{% endblock %}
-{% block scripts %}
-{{ super() }} {% endblock %}
+{% endblock %} {% block scripts %} {{ super() }} {% endblock %}

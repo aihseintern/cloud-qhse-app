@@ -107,6 +107,7 @@ def user_permission(user_id=None):
 @login_required
 @admin_required
 def menu():
+    print(session['depo_id'])
     form = MenuForm()
     if request.method == "POST":
         print("Permission ID: ", form.permission_id.data)

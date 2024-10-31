@@ -40,6 +40,7 @@ from app.models import (
     UserPermission,
     Weight,
     suMenu,
+    switch_database,
 )
 from flask_login import current_user, login_user, logout_user, login_required
 import logging
@@ -59,19 +60,22 @@ app_routes = [
     dg_classifier_bp
 ]
 
+
 main = Blueprint("main", __name__)
 
 @main.route("/", methods=["GET"])
-@login_required
+# @login_required
 def index():    
-    # Get the permission IDs for the current user
-    allowed_permission_ids = get_allowed_permission_ids()    
+    # # Get the permission IDs for the current user
+    # allowed_permission_ids = get_allowed_permission_ids()    
     
-    # Query the suMenu model for menus associated with those permission IDs
-    menus = suMenu.query.filter(suMenu.permission_id.in_(allowed_permission_ids)).all()
+    # # Query the suMenu model for menus associated with those permission IDs
+    # menus = suMenu.query.filter(suMenu.permission_id.in_(allowed_permission_ids)).all()
     
-    # Render the index template and pass the menu data
-    return render_template("index.html", menus=menus)
+    # # Render the index template and pass the menu data
+    # return render_template("index.html", menus=menus)
+
+    return render_template("list_depo.html")
 
 @main.route('/set_session', methods=['POST'])
 def set_session():
@@ -81,6 +85,24 @@ def set_session():
         session['permission_name'] = permission.name
         session['permission_id'] = permission_id
         return jsonify({'status': 'success'}), 200
+    return jsonify({'status': 'error', 'message': 'No ID provided'}), 400
+
+@main.route('/set_depo_session', methods=['POST'])
+def set_depo_session():
+    depo_id = request.form.get('id')
+    print(f"depo location: {depo_id}")
+    depo = {
+        'japfa': 'DATABASE_URL1',
+        'local': 'DATABASE_URL2'
+    }
+    if depo_id in depo:
+        session['db_id'] = depo[depo_id]
+        print(f"selected database: {session['db_id']}")
+        try:
+            switch_database()
+            return jsonify({'status': 'success'}), 200
+        except KeyError:
+            return jsonify({'status': 'error', 'message': 'Invalid depo ID'}), 400
     return jsonify({'status': 'error', 'message': 'No ID provided'}), 400
 
 @main.route('/uploads/<filename>')
